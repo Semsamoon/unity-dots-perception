@@ -1,0 +1,23 @@
+{
+  "name": "com.semsamoon.unity-dots-perception",
+  "version": "0.0.0",
+  "displayName": "Semsamoon DOTS Perception",
+  "description": "AI Perception Framework for Unity's Data-Oriented Technology Stack. It is designed to be simple, high-performance, and easy to extend.",
+  "unity": "6000.0",
+  "unityRelease": "0f1",
+  "documentationUrl": "https://github.com/Semsamoon/unity-dots-perception/blob/master/README.md",
+  "licensesUrl": "https://github.com/Semsamoon/unity-dots-perception/blob/master/LICENSE.md",
+  "keywords": [
+    "AI Perception",
+    "Perception",
+    "Semsamoon"
+  ],
+  "repository": {
+    "url": "https://github.com/Semsamoon/unity-dots-perception.git",
+    "type": "git"
+  },
+  "author": {
+    "name": "Semsamoon",
+    "url": "https://github.com/Semsamoon"
+  }
+}
