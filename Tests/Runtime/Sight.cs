@@ -15,10 +15,12 @@ namespace Perception.Tests
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
 
             var entity1 = entityManager.CreateEntity();
+            entityManager.AddComponentData(entity1, new TagSightReceiver());
             entityManager.AddComponentData(entity1, new LocalToWorld { Value = float4x4.identity });
             entityManager.AddComponentData(entity1, new ComponentSightOffset { Value = new float3(1, 1, 1) });
 
             var entity2 = entityManager.CreateEntity();
+            entityManager.AddComponentData(entity2, new TagSightSource());
             entityManager.AddComponentData(entity2, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
             entityManager.AddComponentData(entity2, new ComponentSightPosition());
 
