@@ -20,6 +20,7 @@ namespace Perception
 
             foreach (var (transformRO, offsetRO, entity) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAny<TagSightReceiver, TagSightSource>()
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -31,13 +32,15 @@ namespace Perception
 
             foreach (var (positionRW, transformRO) in SystemAPI
                          .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>>()
+                         .WithAny<TagSightReceiver, TagSightSource>()
                          .WithNone<ComponentSightOffset>())
             {
                 positionRW.ValueRW.Value = transformRO.ValueRO.Position;
             }
 
             foreach (var (positionRW, transformRO, offsetRO) in SystemAPI
-                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>())
+                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAny<TagSightReceiver, TagSightSource>())
             {
                 positionRW.ValueRW.Value = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Value);
             }
