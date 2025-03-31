@@ -63,13 +63,9 @@ namespace Perception
                          .WithNone<ComponentSightConeClip>()
                          .WithEntityAccess())
             {
-                ref readonly var transform = ref transformRO.ValueRO;
-
-                var position = positionRO.ValueRO.Value;
-                var cone = coneRO.ValueRO;
-
                 buffersInsideCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transform, position, cone, ref commands);
+                ProcessReceiver(ref state, receiver, in transformRO.ValueRO,
+                    positionRO.ValueRO.Value, coneRO.ValueRO, ref commands);
             }
 
             foreach (var (transformRO, coneRO, receiver) in SystemAPI
@@ -78,13 +74,9 @@ namespace Perception
                          .WithNone<ComponentSightConeClip, ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                ref readonly var transform = ref transformRO.ValueRO;
-
-                var position = transform.Position;
-                var cone = coneRO.ValueRO;
-
                 buffersInsideCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transform, position, cone, ref commands);
+                ProcessReceiver(ref state, receiver, in transformRO.ValueRO,
+                    transformRO.ValueRO.Position, coneRO.ValueRO, ref commands);
             }
 
             commands.Playback(state.EntityManager);
@@ -124,16 +116,8 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourcePosition = sourcePositionRO.ValueRO.Value;
-
-                if (IsInsideCone(in transform, position, cone.AnglesTan, cone.RadiusSquared, sourcePosition))
-                {
-                    commands.AppendToBuffer(receiver, new BufferSightInsideCone
-                    {
-                        Source = source,
-                        Position = sourcePosition,
-                    });
-                }
+                ProcessSource(ref state, receiver, in transform, position, cone,
+                    source, sourcePositionRO.ValueRO.Value, ref commands);
             }
 
             foreach (var (sourceTransformRO, source) in SystemAPI
@@ -142,16 +126,8 @@ namespace Perception
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var sourcePosition = sourceTransformRO.ValueRO.Position;
-
-                if (IsInsideCone(in transform, position, cone.AnglesTan, cone.RadiusSquared, sourcePosition))
-                {
-                    commands.AppendToBuffer(receiver, new BufferSightInsideCone
-                    {
-                        Source = source,
-                        Position = sourcePosition,
-                    });
-                }
+                ProcessSource(ref state, receiver, in transform, position, cone,
+                    source, sourceTransformRO.ValueRO.Position, ref commands);
             }
         }
 
@@ -163,6 +139,21 @@ namespace Perception
         {
             if (IsInsideCone(in transform, position, cone.AnglesTan,
                     clipRadiusSquared, cone.RadiusSquared, sourcePosition))
+            {
+                commands.AppendToBuffer(receiver, new BufferSightInsideCone
+                {
+                    Source = source,
+                    Position = sourcePosition,
+                });
+            }
+        }
+
+        private void ProcessSource(ref SystemState state,
+            Entity receiver, in LocalToWorld transform, float3 position,
+            ComponentSightCone cone, Entity source, float3 sourcePosition,
+            ref EntityCommandBuffer commands)
+        {
+            if (IsInsideCone(in transform, position, cone.AnglesTan, cone.RadiusSquared, sourcePosition))
             {
                 commands.AppendToBuffer(receiver, new BufferSightInsideCone
                 {
