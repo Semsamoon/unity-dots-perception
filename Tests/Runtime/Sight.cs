@@ -61,6 +61,10 @@ namespace Perception.Tests
             entityManager.SetComponentData(receiver, new ComponentSightConeClip { RadiusSquared = 13 });
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
+
+            entityManager.AddComponentData(receiver, new ComponentSightConeOffset { Value = new float3(2, 2, -2) });
+            yield return null;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
         }
 
         [UnityTest]
