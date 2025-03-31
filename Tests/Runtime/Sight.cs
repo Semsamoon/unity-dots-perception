@@ -52,10 +52,15 @@ namespace Perception.Tests
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
 
+            entityManager.AddComponentData(receiver, new ComponentSightConeClip { RadiusSquared = 4 });
             entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesTan = new float2(1, 1), RadiusSquared = 16 });
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
+
+            entityManager.SetComponentData(receiver, new ComponentSightConeClip { RadiusSquared = 13 });
+            yield return null;
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
         }
 
         [UnityTest]
