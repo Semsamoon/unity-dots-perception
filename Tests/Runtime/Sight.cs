@@ -34,9 +34,15 @@ namespace Perception.Tests
         [UnityTest]
         public IEnumerator Cone()
         {
+            var awaitPhysics = new WaitForSeconds(0.1f);
+            var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
+            {
+                Orientation = quaternion.identity, Size = new float3(1, 1, 1)
+            }, CollisionFilter.Default);
+
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().Cone(radiusSquared: 4).Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().Cone(radiusSquared: 4).Collider(collider).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(collider).Build();
 
             yield return null;
             Assert.True(entityManager.HasBuffer<BufferSightInsideCone>(receiver));
@@ -63,6 +69,11 @@ namespace Perception.Tests
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
 
             entityManager.AddComponentData(receiver, new ComponentSightConeOffset { Value = new float3(2, 2, -2) });
+            yield return awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
+
+            entityManager.AddComponentData(receiver, new ComponentSightConeExtend { AnglesTan = new float2(5, 5), RadiusSquared = 25 });
+            entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(-3, -3, 3)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightInsideCone>(receiver).Length);
         }
