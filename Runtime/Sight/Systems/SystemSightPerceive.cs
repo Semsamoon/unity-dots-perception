@@ -46,10 +46,8 @@ namespace Perception
                          .WithAll<BufferSightPerceive, BufferSightInsideCone>()
                          .WithEntityAccess())
             {
-                var bufferInsideCone = buffersInsideCone[receiver];
-                var receiverPosition = positionRO.ValueRO.Value;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition, bufferInsideCone,
+                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value, buffersInsideCone[receiver],
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
@@ -60,10 +58,8 @@ namespace Perception
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var bufferInsideCone = buffersInsideCone[receiver];
-                var receiverPosition = transformRO.ValueRO.Position;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition, bufferInsideCone,
+                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position, buffersInsideCone[receiver],
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
@@ -73,9 +69,8 @@ namespace Perception
                          .WithNone<BufferSightInsideCone>()
                          .WithEntityAccess())
             {
-                var receiverPosition = positionRO.ValueRO.Value;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
+                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
@@ -85,9 +80,8 @@ namespace Perception
                          .WithNone<BufferSightInsideCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var receiverPosition = transformRO.ValueRO.Position;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
+                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position,
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
@@ -97,11 +91,9 @@ namespace Perception
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
             {
-                var bufferInsideCone = buffersInsideCone[receiver];
-                var receiverPosition = positionRO.ValueRO.Value;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
-                    bufferInsideCone, buffersChild, in physicsWorld, ref commands);
+                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
+                    buffersInsideCone[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
             foreach (var (transformRO, receiver) in SystemAPI
@@ -110,11 +102,9 @@ namespace Perception
                          .WithNone<BufferSightChild, ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var bufferInsideCone = buffersInsideCone[receiver];
-                var receiverPosition = transformRO.ValueRO.Position;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
-                    bufferInsideCone, buffersChild, in physicsWorld, ref commands);
+                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position,
+                    buffersInsideCone[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
             foreach (var (positionRO, receiver) in SystemAPI
@@ -123,9 +113,8 @@ namespace Perception
                          .WithNone<BufferSightChild, BufferSightInsideCone>()
                          .WithEntityAccess())
             {
-                var receiverPosition = positionRO.ValueRO.Value;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
+                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
                     buffersChild, in physicsWorld, ref commands);
             }
 
@@ -135,9 +124,8 @@ namespace Perception
                          .WithNone<BufferSightChild, BufferSightInsideCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var receiverPosition = transformRO.ValueRO.Position;
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, receiverPosition,
+                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position,
                     buffersChild, in physicsWorld, ref commands);
             }
 
@@ -151,18 +139,16 @@ namespace Perception
         {
             foreach (var insideCone in bufferInsideCone)
             {
-                var source = insideCone.Source;
-                var sourcePosition = insideCone.Position;
-
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(insideCone.Source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        source, sourcePosition, buffer, in physicsWorld, ref commands);
+                        insideCone.Source, insideCone.Position, sourceBufferChild,
+                        in physicsWorld, ref commands);
                     continue;
                 }
 
                 ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    source, sourcePosition, in physicsWorld, ref commands);
+                    insideCone.Source, insideCone.Position, in physicsWorld, ref commands);
             }
         }
 
@@ -173,16 +159,16 @@ namespace Perception
         {
             foreach (var insideCone in bufferInsideCone)
             {
-                var source = insideCone.Source;
-                var sourcePosition = insideCone.Position;
-
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(insideCone.Source, out var sourceBufferChild))
                 {
-                    ProcessSource(ref state, receiver, position, source, sourcePosition, buffer, in physicsWorld, ref commands);
+                    ProcessSource(ref state, receiver, position,
+                        insideCone.Source, insideCone.Position, sourceBufferChild,
+                        in physicsWorld, ref commands);
                     continue;
                 }
 
-                ProcessSource(ref state, receiver, position, source, sourcePosition, in physicsWorld, ref commands);
+                ProcessSource(ref state, receiver, position,
+                    insideCone.Source, insideCone.Position, in physicsWorld, ref commands);
             }
         }
 
@@ -196,17 +182,16 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourcePosition = positionRO.ValueRO.Value;
-
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        source, sourcePosition, buffer, in physicsWorld, ref commands);
+                        source, positionRO.ValueRO.Value, sourceBufferChild,
+                        in physicsWorld, ref commands);
                     continue;
                 }
 
                 ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    source, sourcePosition, in physicsWorld, ref commands);
+                    source, positionRO.ValueRO.Value, in physicsWorld, ref commands);
             }
 
             foreach (var (transformRO, source) in SystemAPI
@@ -215,17 +200,16 @@ namespace Perception
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
-                var sourcePosition = transformRO.ValueRO.Position;
-
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        source, sourcePosition, buffer, in physicsWorld, ref commands);
+                        source, transformRO.ValueRO.Position, sourceBufferChild,
+                        in physicsWorld, ref commands);
                     continue;
                 }
 
                 ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    source, sourcePosition, in physicsWorld, ref commands);
+                    source, transformRO.ValueRO.Position, in physicsWorld, ref commands);
             }
         }
 
@@ -240,13 +224,16 @@ namespace Perception
             {
                 var sourcePosition = positionRO.ValueRO.Value;
 
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
                 {
-                    ProcessSource(ref state, receiver, position, source, sourcePosition, buffer, in physicsWorld, ref commands);
+                    ProcessSource(ref state, receiver, position,
+                        source, sourcePosition, sourceBufferChild,
+                        in physicsWorld, ref commands);
                     continue;
                 }
 
-                ProcessSource(ref state, receiver, position, source, sourcePosition, in physicsWorld, ref commands);
+                ProcessSource(ref state, receiver, position,
+                    source, sourcePosition, in physicsWorld, ref commands);
             }
 
             foreach (var (transformRO, source) in SystemAPI
@@ -257,13 +244,15 @@ namespace Perception
             {
                 var sourcePosition = transformRO.ValueRO.Position;
 
-                if (buffersChild.TryGetBuffer(source, out var buffer))
+                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
                 {
-                    ProcessSource(ref state, receiver, position, source, sourcePosition, buffer, in physicsWorld, ref commands);
+                    ProcessSource(ref state, receiver, position,
+                        source, sourcePosition, sourceBufferChild, in physicsWorld, ref commands);
                     continue;
                 }
 
-                ProcessSource(ref state, receiver, position, source, sourcePosition, in physicsWorld, ref commands);
+                ProcessSource(ref state, receiver, position,
+                    source, sourcePosition, in physicsWorld, ref commands);
             }
         }
 
