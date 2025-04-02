@@ -1,6 +1,6 @@
 {
   "name": "com.semsamoon.unity-dots-perception",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "Semsamoon DOTS Perception",
   "description": "AI Perception Framework for Unity's Data-Oriented Technology Stack. It is designed to be simple, high-performance, and easy to extend.",
   "unity": "6000.0",
