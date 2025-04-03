@@ -109,6 +109,13 @@ namespace Perception.Tests
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 5, 5)) });
             yield return awaitPhysics;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+
+            entityManager.AddBuffer<BufferSightChild>(source);
+            entityManager.GetBuffer<BufferSightChild>(source).Add(new BufferSightChild { Value = obstacle });
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 5)) });
+            entityManager.SetComponentData(obstacle, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 3)) });
+            yield return awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
         }
 
         private struct EntityBuilder
