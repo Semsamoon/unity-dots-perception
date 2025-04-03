@@ -7,7 +7,7 @@ using Unity.Transforms;
 namespace Perception
 {
     [UpdateAfter(typeof(SystemSightCone))]
-    public partial struct SystemSightPerceive : ISystem
+    public partial struct SystemSightPerceiveSingle : ISystem
     {
         public void OnCreate(ref SystemState state)
         {
