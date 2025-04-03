@@ -41,7 +41,7 @@ namespace Perception.Tests
             }, CollisionFilter.Default);
 
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().Cone(radiusSquared: 4).Collider(collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(radiusSquared: 4).Collider(collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(collider).Build();
 
             yield return null;
@@ -88,7 +88,7 @@ namespace Perception.Tests
             }, CollisionFilter.Default);
 
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().Collider(collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Collider(collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5)).Source().Collider(collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(collider).Build();
 
@@ -139,6 +139,12 @@ namespace Perception.Tests
             public EntityBuilder Source()
             {
                 _entityManager.AddComponentData(_entity, new TagSightSource());
+                return this;
+            }
+
+            public EntityBuilder RaySingle()
+            {
+                _entityManager.AddComponentData(_entity, new TagSightRaySingle());
                 return this;
             }
 
