@@ -118,6 +118,40 @@ namespace Perception.Tests
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
         }
 
+        [UnityTest]
+        public IEnumerator PerceiveMultiple()
+        {
+            var awaitPhysics = new WaitForSeconds(0.1f);
+            var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
+            {
+                Orientation = quaternion.identity, Size = new float3(1, 1, 1)
+            }, CollisionFilter.Default);
+
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var receiver = new EntityBuilder(entityManager).Receiver().RayMultiple()
+                .RayOffset(float3.zero).RayOffset(new float3(0, 0.5f, 0)).Collider(collider).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(collider).Build();
+            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(collider).Build();
+
+            yield return awaitPhysics;
+            Assert.True(entityManager.HasBuffer<BufferSightPerceive>(receiver));
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0.6f, 5.5f)) });
+            yield return awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+            Assert.AreEqual(source, entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Source);
+            Assert.AreEqual(new float3(0, 0.6f, 5.5f), entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Position);
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, -0.6f, 5.5f)) });
+            yield return awaitPhysics;
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+
+            entityManager.GetBuffer<BufferSightRayOffset>(receiver).Add(new BufferSightRayOffset { Value = new float3(0, -0.5f, 0) });
+            yield return awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+        }
+
         private struct EntityBuilder
         {
             private EntityManager _entityManager;
@@ -145,6 +179,23 @@ namespace Perception.Tests
             public EntityBuilder RaySingle()
             {
                 _entityManager.AddComponentData(_entity, new TagSightRaySingle());
+                return this;
+            }
+
+            public EntityBuilder RayMultiple()
+            {
+                _entityManager.AddComponentData(_entity, new TagSightRayMultiple());
+                return this;
+            }
+
+            public EntityBuilder RayOffset(float3 offset = default)
+            {
+                if (!_entityManager.HasBuffer<BufferSightRayOffset>(_entity))
+                {
+                    _entityManager.AddBuffer<BufferSightRayOffset>(_entity);
+                }
+
+                _entityManager.GetBuffer<BufferSightRayOffset>(_entity).Add(new BufferSightRayOffset { Value = offset });
                 return this;
             }
 
