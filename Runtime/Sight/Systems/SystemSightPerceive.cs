@@ -42,7 +42,7 @@ namespace Perception
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, BufferSightChild>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
                          .WithAll<BufferSightPerceive, BufferSightInsideCone>()
                          .WithEntityAccess())
             {
@@ -53,7 +53,7 @@ namespace Perception
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
-                         .WithAll<TagSightReceiver, BufferSightChild>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
                          .WithAll<BufferSightPerceive, BufferSightInsideCone>()
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
@@ -65,7 +65,8 @@ namespace Perception
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, BufferSightChild, BufferSightPerceive>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle>()
+                         .WithAll<BufferSightChild, BufferSightPerceive>()
                          .WithNone<BufferSightInsideCone>()
                          .WithEntityAccess())
             {
@@ -76,7 +77,8 @@ namespace Perception
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
-                         .WithAll<TagSightReceiver, BufferSightChild, BufferSightPerceive>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle>()
+                         .WithAll<BufferSightChild, BufferSightPerceive>()
                          .WithNone<BufferSightInsideCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -87,7 +89,8 @@ namespace Perception
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle>()
+                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
             {
@@ -98,7 +101,8 @@ namespace Perception
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
-                         .WithAll<TagSightReceiver, BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle>()
+                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
                          .WithNone<BufferSightChild, ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -109,7 +113,7 @@ namespace Perception
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, BufferSightPerceive>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightPerceive>()
                          .WithNone<BufferSightChild, BufferSightInsideCone>()
                          .WithEntityAccess())
             {
@@ -120,7 +124,7 @@ namespace Perception
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
-                         .WithAll<TagSightReceiver, BufferSightPerceive>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightPerceive>()
                          .WithNone<BufferSightChild, BufferSightInsideCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
