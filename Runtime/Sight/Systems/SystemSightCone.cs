@@ -23,23 +23,23 @@ namespace Perception
             foreach (var receiver in SystemAPI
                          .QueryBuilder()
                          .WithAll<TagSightReceiver, ComponentSightCone>()
-                         .WithNone<BufferSightInsideCone>()
+                         .WithNone<BufferSightCone>()
                          .Build()
                          .ToEntityArray(Allocator.Temp))
             {
-                commands.AddBuffer<BufferSightInsideCone>(receiver);
+                commands.AddBuffer<BufferSightCone>(receiver);
             }
 
             commands.Playback(state.EntityManager);
             commands = new EntityCommandBuffer(Allocator.Temp);
 
-            var buffersInsideCone = SystemAPI.GetBufferLookup<BufferSightInsideCone>();
+            var buffersInsideCone = SystemAPI.GetBufferLookup<BufferSightCone>();
             var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
 
             foreach (var (transformRO, offsetRO, coneRO, coneClipRO, coneOffsetRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeClip>, RefRO<ComponentSightConeOffset>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithEntityAccess())
             {
                 buffersInsideCone[receiver].Clear();
@@ -52,7 +52,7 @@ namespace Perception
             foreach (var (transformRO, coneRO, coneClipRO, coneOffsetRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>, RefRO<ComponentSightConeClip>,
                              RefRO<ComponentSightConeOffset>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightOffset>()
                          .WithEntityAccess())
             {
@@ -66,7 +66,7 @@ namespace Perception
             foreach (var (transformRO, offsetRO, coneRO, coneOffsetRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeOffset>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeClip>()
                          .WithEntityAccess())
             {
@@ -79,7 +79,7 @@ namespace Perception
             foreach (var (transformRO, coneRO, coneOffsetRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeOffset>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeClip, ComponentSightOffset>()
                          .WithEntityAccess())
             {
@@ -92,7 +92,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, coneClipRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeClip>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeOffset>()
                          .WithEntityAccess())
             {
@@ -105,7 +105,7 @@ namespace Perception
             foreach (var (transformRO, coneRO, coneClipRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeClip>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeOffset, ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -118,7 +118,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
                              RefRO<ComponentSightCone>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeOffset, ComponentSightConeClip>()
                          .WithEntityAccess())
             {
@@ -129,7 +129,7 @@ namespace Perception
 
             foreach (var (transformRO, coneRO, coneExtendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>, RefRO<ComponentSightConeExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeOffset, ComponentSightConeClip, ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -141,7 +141,7 @@ namespace Perception
             foreach (var (transformRO, offsetRO, coneRO, coneClipRO, coneOffsetRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeClip>, RefRO<ComponentSightConeOffset>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend>()
                          .WithEntityAccess())
             {
@@ -154,7 +154,7 @@ namespace Perception
             foreach (var (transformRO, coneRO, coneClipRO, coneOffsetRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightConeClip>, RefRO<ComponentSightConeOffset>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightOffset>()
                          .WithEntityAccess())
             {
@@ -167,7 +167,7 @@ namespace Perception
             foreach (var (transformRO, offsetRO, coneRO, coneOffsetRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>,
                              RefRO<ComponentSightCone>, RefRO<ComponentSightConeOffset>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeClip>()
                          .WithEntityAccess())
             {
@@ -179,7 +179,7 @@ namespace Perception
 
             foreach (var (transformRO, coneRO, coneOffsetRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>, RefRO<ComponentSightConeOffset>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeClip, ComponentSightOffset>()
                          .WithEntityAccess())
             {
@@ -192,7 +192,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, coneClipRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
                              RefRO<ComponentSightCone>, RefRO<ComponentSightConeClip>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeOffset>()
                          .WithEntityAccess())
             {
@@ -203,7 +203,7 @@ namespace Perception
 
             foreach (var (transformRO, coneRO, coneClipRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>, RefRO<ComponentSightConeClip>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeOffset, ComponentSightPosition>()
                          .WithEntityAccess())
             {
@@ -214,7 +214,7 @@ namespace Perception
 
             foreach (var (transformRO, positionRO, coneRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeOffset, ComponentSightConeClip>()
                          .WithEntityAccess())
             {
@@ -225,7 +225,7 @@ namespace Perception
 
             foreach (var (transformRO, coneRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightCone>>()
-                         .WithAll<TagSightReceiver, BufferSightInsideCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightConeExtend, ComponentSightConeOffset>()
                          .WithNone<ComponentSightConeClip, ComponentSightPosition>()
                          .WithEntityAccess())
@@ -351,7 +351,7 @@ namespace Perception
 
             if (IsInsideCone(in transform, position, anglesTan, clipRadiusSquared, radiusSquared, sourcePosition))
             {
-                commands.AppendToBuffer(receiver, new BufferSightInsideCone
+                commands.AppendToBuffer(receiver, new BufferSightCone
                 {
                     Source = source,
                     Position = sourcePosition,
@@ -368,7 +368,7 @@ namespace Perception
 
             if (IsInsideCone(in transform, position, anglesTan, radiusSquared, sourcePosition))
             {
-                commands.AppendToBuffer(receiver, new BufferSightInsideCone
+                commands.AppendToBuffer(receiver, new BufferSightCone
                 {
                     Source = source,
                     Position = sourcePosition,
@@ -385,7 +385,7 @@ namespace Perception
             if (IsInsideCone(in transform, position, cone.AnglesTan,
                     clipRadiusSquared, cone.RadiusSquared, sourcePosition))
             {
-                commands.AppendToBuffer(receiver, new BufferSightInsideCone
+                commands.AppendToBuffer(receiver, new BufferSightCone
                 {
                     Source = source,
                     Position = sourcePosition,
@@ -400,7 +400,7 @@ namespace Perception
         {
             if (IsInsideCone(in transform, position, cone.AnglesTan, cone.RadiusSquared, sourcePosition))
             {
-                commands.AppendToBuffer(receiver, new BufferSightInsideCone
+                commands.AppendToBuffer(receiver, new BufferSightCone
                 {
                     Source = source,
                     Position = sourcePosition,

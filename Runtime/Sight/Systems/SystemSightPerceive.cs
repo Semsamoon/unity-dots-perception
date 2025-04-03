@@ -35,31 +35,31 @@ namespace Perception
             commands.Playback(state.EntityManager);
             commands = new EntityCommandBuffer(Allocator.Temp);
 
-            var buffersInsideCone = SystemAPI.GetBufferLookup<BufferSightInsideCone>();
             var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
             var buffersChild = SystemAPI.GetBufferLookup<BufferSightChild>();
+            var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
             ref readonly var physicsWorld = ref SystemAPI.GetSingletonRW<PhysicsWorldSingleton>().ValueRO;
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
-                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value, buffersInsideCone[receiver],
+                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value, buffersCone[receiver],
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
-                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position, buffersInsideCone[receiver],
+                ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position, buffersCone[receiver],
                     buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
@@ -67,7 +67,7 @@ namespace Perception
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
                          .WithAll<BufferSightChild, BufferSightPerceive>()
-                         .WithNone<BufferSightInsideCone>()
+                         .WithNone<BufferSightCone>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
@@ -79,7 +79,7 @@ namespace Perception
                          .Query<RefRO<LocalToWorld>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
                          .WithAll<BufferSightChild, BufferSightPerceive>()
-                         .WithNone<BufferSightInsideCone, ComponentSightPosition>()
+                         .WithNone<BufferSightCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
@@ -90,31 +90,31 @@ namespace Perception
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
-                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
                 ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
-                    buffersInsideCone[receiver], buffersChild, in physicsWorld, ref commands);
+                    buffersCone[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
-                         .WithAll<BufferSightPerceive, BufferSightInsideCone>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithNone<BufferSightChild, ComponentSightPosition>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
                 ProcessReceiver(ref state, receiver, transformRO.ValueRO.Position,
-                    buffersInsideCone[receiver], buffersChild, in physicsWorld, ref commands);
+                    buffersCone[receiver], buffersChild, in physicsWorld, ref commands);
             }
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightPerceive>()
-                         .WithNone<BufferSightChild, BufferSightInsideCone>()
+                         .WithNone<BufferSightChild, BufferSightCone>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
@@ -125,7 +125,7 @@ namespace Perception
             foreach (var (transformRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightPerceive>()
-                         .WithNone<BufferSightChild, BufferSightInsideCone, ComponentSightPosition>()
+                         .WithNone<BufferSightChild, BufferSightCone, ComponentSightPosition>()
                          .WithEntityAccess())
             {
                 buffersPerceive[receiver].Clear();
@@ -137,42 +137,40 @@ namespace Perception
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightInsideCone> bufferInsideCone,
+            Entity receiver, float3 position, DynamicBuffer<BufferSightCone> bufferCone,
             DynamicBuffer<BufferSightChild> receiverBufferChild, BufferLookup<BufferSightChild> buffersChild,
             in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
         {
-            foreach (var insideCone in bufferInsideCone)
+            foreach (var cone in bufferCone)
             {
-                if (buffersChild.TryGetBuffer(insideCone.Source, out var sourceBufferChild))
+                if (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        insideCone.Source, insideCone.Position, sourceBufferChild,
-                        in physicsWorld, ref commands);
+                        cone.Source, cone.Position, sourceBufferChild, in physicsWorld, ref commands);
                     continue;
                 }
 
                 ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    insideCone.Source, insideCone.Position, in physicsWorld, ref commands);
+                    cone.Source, cone.Position, in physicsWorld, ref commands);
             }
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightInsideCone> bufferInsideCone,
+            Entity receiver, float3 position, DynamicBuffer<BufferSightCone> bufferCone,
             BufferLookup<BufferSightChild> buffersChild,
             in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
         {
-            foreach (var insideCone in bufferInsideCone)
+            foreach (var cone in bufferCone)
             {
-                if (buffersChild.TryGetBuffer(insideCone.Source, out var sourceBufferChild))
+                if (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position,
-                        insideCone.Source, insideCone.Position, sourceBufferChild,
-                        in physicsWorld, ref commands);
+                        cone.Source, cone.Position, sourceBufferChild, in physicsWorld, ref commands);
                     continue;
                 }
 
                 ProcessSource(ref state, receiver, position,
-                    insideCone.Source, insideCone.Position, in physicsWorld, ref commands);
+                    cone.Source, cone.Position, in physicsWorld, ref commands);
             }
         }
 
@@ -231,8 +229,7 @@ namespace Perception
                 if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
                 {
                     ProcessSource(ref state, receiver, position,
-                        source, sourcePosition, sourceBufferChild,
-                        in physicsWorld, ref commands);
+                        source, sourcePosition, sourceBufferChild, in physicsWorld, ref commands);
                     continue;
                 }
 
