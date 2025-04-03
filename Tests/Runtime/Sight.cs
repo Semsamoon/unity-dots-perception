@@ -79,7 +79,7 @@ namespace Perception.Tests
         }
 
         [UnityTest]
-        public IEnumerator Perceive()
+        public IEnumerator PerceiveSingle()
         {
             var awaitPhysics = new WaitForSeconds(0.1f);
             var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
