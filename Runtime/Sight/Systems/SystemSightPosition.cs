@@ -30,12 +30,16 @@ namespace Perception
                 });
             }
 
-            foreach (var (positionRW, transformRO) in SystemAPI
-                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>>()
+            foreach (var (transformRO, entity) in SystemAPI
+                         .Query<RefRO<LocalToWorld>>()
                          .WithAny<TagSightReceiver, TagSightSource>()
-                         .WithNone<ComponentSightOffset>())
+                         .WithNone<ComponentSightPosition, ComponentSightOffset>()
+                         .WithEntityAccess())
             {
-                positionRW.ValueRW.Value = transformRO.ValueRO.Position;
+                commands.AddComponent(entity, new ComponentSightPosition
+                {
+                    Value = transformRO.ValueRO.Position,
+                });
             }
 
             foreach (var (positionRW, transformRO, offsetRO) in SystemAPI
@@ -43,6 +47,14 @@ namespace Perception
                          .WithAny<TagSightReceiver, TagSightSource>())
             {
                 positionRW.ValueRW.Value = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Value);
+            }
+
+            foreach (var (positionRW, transformRO) in SystemAPI
+                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>>()
+                         .WithAny<TagSightReceiver, TagSightSource>()
+                         .WithNone<ComponentSightOffset>())
+            {
+                positionRW.ValueRW.Value = transformRO.ValueRO.Position;
             }
 
             commands.Playback(state.EntityManager);
