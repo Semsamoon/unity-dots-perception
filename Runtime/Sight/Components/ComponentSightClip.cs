@@ -5,7 +5,7 @@ namespace Perception
     /// <summary>
     /// Adds near clipping plane to the receiver's cone of vision.
     /// </summary>
-    public struct ComponentSightConeClip : IComponentData
+    public struct ComponentSightClip : IComponentData
     {
         public float RadiusSquared;
     }

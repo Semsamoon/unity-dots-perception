@@ -6,7 +6,7 @@ namespace Perception
     /// <summary>
     /// Adds extension of the cone of vision for visible sources.
     /// </summary>
-    public struct ComponentSightConeExtend : IComponentData
+    public struct ComponentSightExtend : IComponentData
     {
         public float2 AnglesTan;
         public float RadiusSquared;
