@@ -53,18 +53,6 @@ namespace Perception
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
-                         .WithAll<BufferSightChild, BufferSightPerceive>()
-                         .WithNone<BufferSightCone>()
-                         .WithEntityAccess())
-            {
-                buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
-                    buffersChild[receiver], buffersChild, in physicsWorld, ref commands);
-            }
-
-            foreach (var (positionRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, TagSightRaySingle>()
                          .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
@@ -72,17 +60,6 @@ namespace Perception
                 buffersPerceive[receiver].Clear();
                 ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
                     buffersCone[receiver], buffersChild, in physicsWorld, ref commands);
-            }
-
-            foreach (var (positionRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightPerceive>()
-                         .WithNone<BufferSightChild, BufferSightCone>()
-                         .WithEntityAccess())
-            {
-                buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
-                    buffersChild, in physicsWorld, ref commands);
             }
 
             commands.Playback(state.EntityManager);
@@ -123,52 +100,6 @@ namespace Perception
 
                 ProcessSource(ref state, receiver, position,
                     cone.Source, cone.Position, in physicsWorld, ref commands);
-            }
-        }
-
-        private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightChild> receiverBufferChild,
-            BufferLookup<BufferSightChild> buffersChild,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
-        {
-            foreach (var (positionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
-                {
-                    ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        source, positionRO.ValueRO.Value, sourceBufferChild,
-                        in physicsWorld, ref commands);
-                    continue;
-                }
-
-                ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    source, positionRO.ValueRO.Value, in physicsWorld, ref commands);
-            }
-        }
-
-        private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position, BufferLookup<BufferSightChild> buffersChild,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
-        {
-            foreach (var (positionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                var sourcePosition = positionRO.ValueRO.Value;
-
-                if (buffersChild.TryGetBuffer(source, out var sourceBufferChild))
-                {
-                    ProcessSource(ref state, receiver, position,
-                        source, sourcePosition, sourceBufferChild, in physicsWorld, ref commands);
-                    continue;
-                }
-
-                ProcessSource(ref state, receiver, position,
-                    source, sourcePosition, in physicsWorld, ref commands);
             }
         }
 

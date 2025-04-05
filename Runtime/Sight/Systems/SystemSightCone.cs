@@ -22,7 +22,7 @@ namespace Perception
 
             foreach (var receiver in SystemAPI
                          .QueryBuilder()
-                         .WithAll<TagSightReceiver, ComponentSightCone>()
+                         .WithAll<TagSightReceiver>()
                          .WithNone<BufferSightCone>()
                          .Build()
                          .ToEntityArray(Allocator.Temp))
