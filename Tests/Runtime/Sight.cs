@@ -29,6 +29,9 @@ namespace Perception.Tests
             yield return null;
             Assert.AreEqual(new float3(3, 3, 3), entityManager.GetComponentData<ComponentSightPosition>(receiver).Value);
             Assert.AreEqual(new float3(4, 4, 4), entityManager.GetComponentData<ComponentSightPosition>(source).Value);
+
+            entityManager.DestroyEntity(receiver);
+            entityManager.DestroyEntity(source);
         }
 
         [UnityTest]
@@ -76,6 +79,10 @@ namespace Perception.Tests
             entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(-3, -3, 3)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
+
+            entityManager.DestroyEntity(receiver);
+            entityManager.DestroyEntity(source);
+            collider.Dispose();
         }
 
         [UnityTest]
@@ -116,6 +123,11 @@ namespace Perception.Tests
             entityManager.SetComponentData(obstacle, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 3)) });
             yield return awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+
+            entityManager.DestroyEntity(receiver);
+            entityManager.DestroyEntity(source);
+            entityManager.DestroyEntity(obstacle);
+            collider.Dispose();
         }
 
         [UnityTest]
@@ -150,6 +162,11 @@ namespace Perception.Tests
             entityManager.GetBuffer<BufferSightRayOffset>(receiver).Add(new BufferSightRayOffset { Value = new float3(0, -0.5f, 0) });
             yield return awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
+
+            entityManager.DestroyEntity(receiver);
+            entityManager.DestroyEntity(source);
+            entityManager.DestroyEntity(obstacle);
+            collider.Dispose();
         }
 
         private struct EntityBuilder
