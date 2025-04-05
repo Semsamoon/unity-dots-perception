@@ -58,21 +58,21 @@ namespace Perception.Tests
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.AddComponentData(receiver, new ComponentSightConeClip { RadiusSquared = 4 });
+            entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
             entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesTan = new float2(1, 1), RadiusSquared = 16 });
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.SetComponentData(receiver, new ComponentSightConeClip { RadiusSquared = 13 });
+            entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 13 });
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.AddComponentData(receiver, new ComponentSightConeOffset { Value = new float3(2, 2, -2) });
+            entityManager.AddComponentData(receiver, new ComponentSightOffset { Value = new float3(2, 2, -2) });
             yield return awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.AddComponentData(receiver, new ComponentSightConeExtend { AnglesTan = new float2(5, 5), RadiusSquared = 25 });
+            entityManager.AddComponentData(receiver, new ComponentSightExtend { AnglesTan = new float2(5, 5), RadiusSquared = 25 });
             entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(-3, -3, 3)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
