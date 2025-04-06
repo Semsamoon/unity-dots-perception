@@ -143,7 +143,7 @@ namespace Perception.Tests
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RayMultiple()
                 .Cone(new float2(float.MaxValue, float.MaxValue), 100)
-                .RayOffset(float3.zero).RayOffset(new float3(0, 0.5f, 0)).Collider(collider).Build();
+                .RayOffset(new float3(0, 0.5f, 0)).Collider(collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(collider).Build();
 
