@@ -34,11 +34,12 @@ namespace Perception
             commands.Playback(state.EntityManager);
             commands = new EntityCommandBuffer(Allocator.Temp);
 
-            var buffersRayOffset = SystemAPI.GetBufferLookup<BufferSightRayOffset>();
-            var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
-            var buffersChild = SystemAPI.GetBufferLookup<BufferSightChild>();
-            var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
-            ref readonly var physicsWorld = ref SystemAPI.GetSingletonRW<PhysicsWorldSingleton>().ValueRO;
+            var physicsRW = SystemAPI.GetSingletonRW<PhysicsWorldSingleton>();
+            var buffers = new Buffers(
+                SystemAPI.GetBufferLookup<BufferSightRayOffset>(),
+                SystemAPI.GetBufferLookup<BufferSightPerceive>(),
+                SystemAPI.GetBufferLookup<BufferSightChild>(),
+                SystemAPI.GetBufferLookup<BufferSightCone>());
 
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
@@ -46,10 +47,8 @@ namespace Perception
                          .WithAll<BufferSightChild, BufferSightPerceive, BufferSightCone>()
                          .WithEntityAccess())
             {
-                buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value, buffersCone[receiver],
-                    buffersRayOffset[receiver], buffersChild[receiver], buffersChild,
-                    in physicsWorld, ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, in buffers);
+                ProcessReceiver(ref state, in receiverData, buffers.Child[receiver], physicsRW, in buffers, ref commands);
             }
 
             foreach (var (positionRO, receiver) in SystemAPI
@@ -59,80 +58,70 @@ namespace Perception
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
             {
-                buffersPerceive[receiver].Clear();
-                ProcessReceiver(ref state, receiver, positionRO.ValueRO.Value,
-                    buffersCone[receiver], buffersRayOffset[receiver], buffersChild,
-                    in physicsWorld, ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, in buffers);
+                ProcessReceiver(ref state, in receiverData, physicsRW, in buffers, ref commands);
             }
 
             commands.Playback(state.EntityManager);
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position,
-            DynamicBuffer<BufferSightCone> bufferCone, DynamicBuffer<BufferSightRayOffset> bufferRayOffset,
-            DynamicBuffer<BufferSightChild> receiverBufferChild, BufferLookup<BufferSightChild> buffersChild,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, DynamicBuffer<BufferSightChild> receiverBufferChild, RefRW<PhysicsWorldSingleton> physicsRW,
+            in Buffers buffers, ref EntityCommandBuffer commands)
         {
-            foreach (var cone in bufferCone)
+            buffers.Perceive[receiver.Entity].Clear();
+
+            foreach (var cone in buffers.Cone[receiver.Entity])
             {
-                if (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild))
+                var source = new Source(cone.Source, cone.Position);
+
+                if (buffers.Child.TryGetBuffer(cone.Source, out var sourceBufferChild))
                 {
-                    ProcessSource(ref state, receiver, position, receiverBufferChild,
-                        cone.Source, cone.Position, sourceBufferChild, bufferRayOffset,
-                        in physicsWorld, ref commands);
+                    ProcessSource(ref state, in receiver, receiverBufferChild, in source, sourceBufferChild, physicsRW, ref commands);
                     continue;
                 }
 
-                ProcessSource(ref state, receiver, position, receiverBufferChild,
-                    cone.Source, cone.Position, bufferRayOffset, in physicsWorld, ref commands);
+                ProcessSource(ref state, in receiver, receiverBufferChild, in source, physicsRW, ref commands);
             }
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightCone> bufferCone,
-            DynamicBuffer<BufferSightRayOffset> bufferRayOffset, BufferLookup<BufferSightChild> buffersChild,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, RefRW<PhysicsWorldSingleton> physicsRW,
+            in Buffers buffers, ref EntityCommandBuffer commands)
         {
-            foreach (var cone in bufferCone)
+            buffers.Perceive[receiver.Entity].Clear();
+
+            foreach (var cone in buffers.Cone[receiver.Entity])
             {
-                if (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild))
+                var source = new Source(cone.Source, cone.Position);
+
+                if (buffers.Child.TryGetBuffer(cone.Source, out var sourceBufferChild))
                 {
-                    ProcessSource(ref state, receiver, position,
-                        cone.Source, cone.Position, sourceBufferChild, bufferRayOffset,
-                        in physicsWorld, ref commands);
+                    ProcessSource(ref state, in receiver, in source, sourceBufferChild, physicsRW, ref commands);
                     continue;
                 }
 
-                ProcessSource(ref state, receiver, position,
-                    cone.Source, cone.Position, bufferRayOffset, in physicsWorld, ref commands);
+                ProcessSource(ref state, in receiver, in source, physicsRW, ref commands);
             }
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightChild> receiverBufferChild,
-            Entity source, float3 sourcePosition, DynamicBuffer<BufferSightChild> sourceBufferChild,
-            DynamicBuffer<BufferSightRayOffset> bufferRayOffset,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, DynamicBuffer<BufferSightChild> receiverBufferChild,
+            in Source source, DynamicBuffer<BufferSightChild> sourceBufferChild,
+            RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
-            foreach (var rayOffset in bufferRayOffset)
+            foreach (var rayOffset in receiver.RayOffset)
             {
-                var raycast = new RaycastInput
-                {
-                    Start = position,
-                    End = sourcePosition + rayOffset.Value,
-                    Filter = CollisionFilter.Default,
-                };
+                var rayCast = new RayCast(in receiver, in source, rayOffset.Value);
+                var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, receiverBufferChild);
+                physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
-                var hitCollector = new CollectorClosestIgnoreEntityAndChild(receiver, receiverBufferChild);
-                physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
-
-                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(hitCollector.Hit, source, sourceBufferChild))
+                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, sourceBufferChild))
                 {
-                    commands.AppendToBuffer(receiver, new BufferSightPerceive
+                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
                     {
-                        Position = sourcePosition,
-                        Source = source,
+                        Source = source.Entity,
+                        Position = source.Position,
                     });
                     return;
                 }
@@ -140,29 +129,21 @@ namespace Perception
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, float3 position,
-            Entity source, float3 sourcePosition, DynamicBuffer<BufferSightChild> sourceBufferChild,
-            DynamicBuffer<BufferSightRayOffset> bufferRayOffset,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, in Source source, DynamicBuffer<BufferSightChild> bufferChild,
+            RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
-            foreach (var rayOffset in bufferRayOffset)
+            foreach (var rayOffset in receiver.RayOffset)
             {
-                var raycast = new RaycastInput
-                {
-                    Start = position,
-                    End = sourcePosition + rayOffset.Value,
-                    Filter = CollisionFilter.Default,
-                };
+                var rayCast = new RayCast(in receiver, in source, rayOffset.Value);
+                var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+                physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
-                var hitCollector = new CollectorClosestIgnoreEntity(receiver);
-                physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
-
-                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(hitCollector.Hit, source, sourceBufferChild))
+                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, bufferChild))
                 {
-                    commands.AppendToBuffer(receiver, new BufferSightPerceive
+                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
                     {
-                        Position = sourcePosition,
-                        Source = source,
+                        Source = source.Entity,
+                        Position = source.Position,
                     });
                     return;
                 }
@@ -170,29 +151,21 @@ namespace Perception
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, float3 position, DynamicBuffer<BufferSightChild> receiverBufferChild,
-            Entity source, float3 sourcePosition,
-            DynamicBuffer<BufferSightRayOffset> bufferRayOffset,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, DynamicBuffer<BufferSightChild> bufferChild, in Source source,
+            RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
-            foreach (var rayOffset in bufferRayOffset)
+            foreach (var rayOffset in receiver.RayOffset)
             {
-                var raycast = new RaycastInput
-                {
-                    Start = position,
-                    End = sourcePosition + rayOffset.Value,
-                    Filter = CollisionFilter.Default,
-                };
+                var rayCast = new RayCast(in receiver, in source, rayOffset.Value);
+                var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, bufferChild);
+                physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
-                var hitCollector = new CollectorClosestIgnoreEntityAndChild(receiver, receiverBufferChild);
-                physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
-
-                if (hitCollector.Hit.Entity == source)
+                if (collector.Hit.Entity == source.Entity)
                 {
-                    commands.AppendToBuffer(receiver, new BufferSightPerceive
+                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
                     {
-                        Position = sourcePosition,
-                        Source = source,
+                        Source = source.Entity,
+                        Position = source.Position,
                     });
                     return;
                 }
@@ -200,31 +173,85 @@ namespace Perception
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, float3 position, Entity source, float3 sourcePosition,
-            DynamicBuffer<BufferSightRayOffset> bufferRayOffset,
-            in PhysicsWorldSingleton physicsWorld, ref EntityCommandBuffer commands)
+            in Receiver receiver, in Source source,
+            RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
-            foreach (var rayOffset in bufferRayOffset)
+            foreach (var rayOffset in receiver.RayOffset)
             {
-                var raycast = new RaycastInput
-                {
-                    Start = position,
-                    End = sourcePosition + rayOffset.Value,
-                    Filter = CollisionFilter.Default,
-                };
+                var rayCast = new RayCast(in receiver, in source, rayOffset.Value);
+                var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+                physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
-                var hitCollector = new CollectorClosestIgnoreEntity(receiver);
-                physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
-
-                if (hitCollector.Hit.Entity == source)
+                if (collector.Hit.Entity == source.Entity)
                 {
-                    commands.AppendToBuffer(receiver, new BufferSightPerceive
+                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
                     {
-                        Position = sourcePosition,
-                        Source = source,
+                        Source = source.Entity,
+                        Position = source.Position,
                     });
                     return;
                 }
+            }
+        }
+
+        private readonly struct Buffers
+        {
+            public readonly BufferLookup<BufferSightRayOffset> RayOffset;
+            public readonly BufferLookup<BufferSightPerceive> Perceive;
+            public readonly BufferLookup<BufferSightChild> Child;
+            public readonly BufferLookup<BufferSightCone> Cone;
+
+            public Buffers(
+                BufferLookup<BufferSightRayOffset> rayOffset,
+                BufferLookup<BufferSightPerceive> perceive,
+                BufferLookup<BufferSightChild> child,
+                BufferLookup<BufferSightCone> cone)
+            {
+                RayOffset = rayOffset;
+                Perceive = perceive;
+                Child = child;
+                Cone = cone;
+            }
+        }
+
+        private readonly struct Receiver
+        {
+            public readonly float3 Position;
+            public readonly Entity Entity;
+            public readonly DynamicBuffer<BufferSightRayOffset> RayOffset;
+
+            public Receiver(Entity entity, float3 position, in Buffers buffers)
+            {
+                Entity = entity;
+                Position = position;
+                RayOffset = buffers.RayOffset[entity];
+            }
+        }
+
+        private readonly struct Source
+        {
+            public readonly float3 Position;
+            public readonly Entity Entity;
+
+            public Source(Entity entity, float3 position)
+            {
+                Entity = entity;
+                Position = position;
+            }
+        }
+
+        private readonly struct RayCast
+        {
+            public readonly RaycastInput Input;
+
+            public RayCast(in Receiver receiver, in Source source, float3 offset)
+            {
+                Input = new RaycastInput
+                {
+                    Start = receiver.Position,
+                    End = source.Position + offset,
+                    Filter = CollisionFilter.Default,
+                };
             }
         }
     }
