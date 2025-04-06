@@ -110,22 +110,28 @@ namespace Perception
             in Source source, DynamicBuffer<BufferSightChild> sourceBufferChild,
             RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
+            var rayCast = new RayCast(in receiver, in source);
+            var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, receiverBufferChild);
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, sourceBufferChild))
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+                return;
+            }
+
             var direction = math.normalizesafe(source.Position - receiver.Position);
             var lookRotation = quaternion.LookRotation(direction, new float3(0, 1, 0));
 
             foreach (var rayOffset in receiver.RayOffset)
             {
-                var rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
-                var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, receiverBufferChild);
+                rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
+                collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, receiverBufferChild);
                 physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
                 if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, sourceBufferChild))
                 {
-                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                    {
-                        Source = source.Entity,
-                        Position = source.Position,
-                    });
+                    AppendPerceive(in receiver, in source, ref commands);
                     return;
                 }
             }
@@ -135,22 +141,28 @@ namespace Perception
             in Receiver receiver, in Source source, DynamicBuffer<BufferSightChild> bufferChild,
             RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
+            var rayCast = new RayCast(in receiver, in source);
+            var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, bufferChild))
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+                return;
+            }
+
             var direction = math.normalizesafe(source.Position - receiver.Position);
             var lookRotation = quaternion.LookRotation(direction, new float3(0, 1, 0));
 
             foreach (var rayOffset in receiver.RayOffset)
             {
-                var rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
-                var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+                rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
+                collector = new CollectorClosestIgnoreEntity(receiver.Entity);
                 physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
                 if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, bufferChild))
                 {
-                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                    {
-                        Source = source.Entity,
-                        Position = source.Position,
-                    });
+                    AppendPerceive(in receiver, in source, ref commands);
                     return;
                 }
             }
@@ -160,22 +172,28 @@ namespace Perception
             in Receiver receiver, DynamicBuffer<BufferSightChild> bufferChild, in Source source,
             RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
+            var rayCast = new RayCast(in receiver, in source);
+            var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, bufferChild);
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (collector.Hit.Entity == source.Entity)
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+                return;
+            }
+
             var direction = math.normalizesafe(source.Position - receiver.Position);
             var lookRotation = quaternion.LookRotation(direction, new float3(0, 1, 0));
 
             foreach (var rayOffset in receiver.RayOffset)
             {
-                var rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
-                var collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, bufferChild);
+                rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
+                collector = new CollectorClosestIgnoreEntityAndChild(receiver.Entity, bufferChild);
                 physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
                 if (collector.Hit.Entity == source.Entity)
                 {
-                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                    {
-                        Source = source.Entity,
-                        Position = source.Position,
-                    });
+                    AppendPerceive(in receiver, in source, ref commands);
                     return;
                 }
             }
@@ -185,25 +203,40 @@ namespace Perception
             in Receiver receiver, in Source source,
             RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
         {
+            var rayCast = new RayCast(in receiver, in source);
+            var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (collector.Hit.Entity == source.Entity)
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+                return;
+            }
+
             var direction = math.normalizesafe(source.Position - receiver.Position);
             var lookRotation = quaternion.LookRotation(direction, new float3(0, 1, 0));
 
             foreach (var rayOffset in receiver.RayOffset)
             {
-                var rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
-                var collector = new CollectorClosestIgnoreEntity(receiver.Entity);
+                rayCast = new RayCast(in receiver, in source, in lookRotation, rayOffset.Value);
+                collector = new CollectorClosestIgnoreEntity(receiver.Entity);
                 physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
 
                 if (collector.Hit.Entity == source.Entity)
                 {
-                    commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                    {
-                        Source = source.Entity,
-                        Position = source.Position,
-                    });
+                    AppendPerceive(in receiver, in source, ref commands);
                     return;
                 }
             }
+        }
+
+        private void AppendPerceive(in Receiver receiver, in Source source, ref EntityCommandBuffer commands)
+        {
+            commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
+            {
+                Source = source.Entity,
+                Position = source.Position,
+            });
         }
 
         private readonly struct Buffers
@@ -255,6 +288,16 @@ namespace Perception
         private readonly struct RayCast
         {
             public readonly RaycastInput Input;
+
+            public RayCast(in Receiver receiver, in Source source)
+            {
+                Input = new RaycastInput
+                {
+                    Start = receiver.Position,
+                    End = source.Position,
+                    Filter = CollisionFilter.Default,
+                };
+            }
 
             public RayCast(in Receiver receiver, in Source source, in quaternion lookRotation, float3 offset)
             {
