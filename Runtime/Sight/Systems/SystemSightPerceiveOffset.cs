@@ -124,10 +124,10 @@ namespace Perception
                     Filter = CollisionFilter.Default,
                 };
 
-                var hitCollector = new EntitiesFilterCollector<RaycastHit>(0, 1, receiver, receiverBufferChild);
+                var hitCollector = new CollectorClosestIgnoreEntityAndChild(receiver, receiverBufferChild);
                 physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
 
-                if (IsHit(hitCollector.ClosestHit.Entity, source, sourceBufferChild))
+                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(hitCollector.Hit, source, sourceBufferChild))
                 {
                     commands.AppendToBuffer(receiver, new BufferSightPerceive
                     {
@@ -154,10 +154,10 @@ namespace Perception
                     Filter = CollisionFilter.Default,
                 };
 
-                var hitCollector = new EntityFilterCollector<RaycastHit>(0, 1, receiver);
+                var hitCollector = new CollectorClosestIgnoreEntity(receiver);
                 physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
 
-                if (IsHit(hitCollector.ClosestHit.Entity, source, sourceBufferChild))
+                if (!CollectorClosestIgnoreEntityAndChild.CheckHit(hitCollector.Hit, source, sourceBufferChild))
                 {
                     commands.AppendToBuffer(receiver, new BufferSightPerceive
                     {
@@ -184,10 +184,10 @@ namespace Perception
                     Filter = CollisionFilter.Default,
                 };
 
-                var hitCollector = new EntitiesFilterCollector<RaycastHit>(0, 1, receiver, receiverBufferChild);
+                var hitCollector = new CollectorClosestIgnoreEntityAndChild(receiver, receiverBufferChild);
                 physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
 
-                if (hitCollector.ClosestHit.Entity == source)
+                if (hitCollector.Hit.Entity == source)
                 {
                     commands.AppendToBuffer(receiver, new BufferSightPerceive
                     {
@@ -213,10 +213,10 @@ namespace Perception
                     Filter = CollisionFilter.Default,
                 };
 
-                var hitCollector = new EntityFilterCollector<RaycastHit>(0, 1, receiver);
+                var hitCollector = new CollectorClosestIgnoreEntity(receiver);
                 physicsWorld.CollisionWorld.CastRay(raycast, ref hitCollector);
 
-                if (hitCollector.ClosestHit.Entity == source)
+                if (hitCollector.Hit.Entity == source)
                 {
                     commands.AppendToBuffer(receiver, new BufferSightPerceive
                     {
@@ -225,102 +225,6 @@ namespace Perception
                     });
                     return;
                 }
-            }
-        }
-
-        private bool IsHit(Entity hit, Entity entity, DynamicBuffer<BufferSightChild> bufferChild)
-        {
-            if (hit == entity)
-            {
-                return true;
-            }
-
-            foreach (var child in bufferChild)
-            {
-                if (hit == child.Value)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public struct EntityFilterCollector<T> : ICollector<T> where T : struct, IQueryResult
-        {
-            public bool EarlyOutOnFirstHit => false;
-
-            public float MinFraction { get; }
-            public float MaxFraction { get; private set; }
-
-            public Entity ExcludedEntity { get; }
-
-            public T ClosestHit { get; private set; }
-            public int NumHits => ClosestHit.Entity == Entity.Null ? 0 : 1;
-
-            public EntityFilterCollector(float minFraction, float maxFraction, Entity excludedEntity)
-            {
-                MinFraction = minFraction;
-                MaxFraction = maxFraction;
-                ExcludedEntity = excludedEntity;
-                ClosestHit = default;
-            }
-
-            public bool AddHit(T hit)
-            {
-                if (hit.Entity == ExcludedEntity || hit.Fraction < MinFraction)
-                {
-                    return false;
-                }
-
-                MaxFraction = hit.Fraction;
-                ClosestHit = hit;
-                return true;
-            }
-        }
-
-        public struct EntitiesFilterCollector<T> : ICollector<T> where T : struct, IQueryResult
-        {
-            public bool EarlyOutOnFirstHit => false;
-
-            public float MinFraction { get; }
-            public float MaxFraction { get; private set; }
-
-            public Entity ExcludedEntity { get; }
-            public DynamicBuffer<BufferSightChild> ExcludedChildren { get; }
-
-            public T ClosestHit { get; private set; }
-            public int NumHits => ClosestHit.Entity == Entity.Null ? 0 : 1;
-
-            public EntitiesFilterCollector(
-                float minFraction, float maxFraction, Entity excludedEntity,
-                DynamicBuffer<BufferSightChild> excludedChildren)
-            {
-                MinFraction = minFraction;
-                MaxFraction = maxFraction;
-                ExcludedEntity = excludedEntity;
-                ExcludedChildren = excludedChildren;
-                ClosestHit = default;
-            }
-
-            public bool AddHit(T hit)
-            {
-                if (hit.Entity == ExcludedEntity || hit.Fraction < MinFraction)
-                {
-                    return false;
-                }
-
-                foreach (var child in ExcludedChildren)
-                {
-                    if (hit.Entity == child.Value)
-                    {
-                        return false;
-                    }
-                }
-
-                MaxFraction = hit.Fraction;
-                ClosestHit = hit;
-                return true;
             }
         }
     }
