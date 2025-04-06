@@ -33,8 +33,9 @@ namespace Perception
             commands.Playback(state.EntityManager);
             commands = new EntityCommandBuffer(Allocator.Temp);
 
-            var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
-            var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
+            var buffers = new Buffers(
+                SystemAPI.GetBufferLookup<BufferSightPerceive>(),
+                SystemAPI.GetBufferLookup<BufferSightCone>());
 
             foreach (var (transformRO, positionRO, coneRO, clipRO, extendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
@@ -42,34 +43,30 @@ namespace Perception
                          .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithEntityAccess())
             {
-                buffersCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transformRO.ValueRO, positionRO.ValueRO.Value,
-                    coneRO.ValueRO, extendRO.ValueRO, clipRO.ValueRO.RadiusSquared,
-                    buffersPerceive[receiver], ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                ProcessReceiver(ref state, in receiverData, extendRO, clipRO, in buffers, ref commands);
             }
 
             foreach (var (transformRO, positionRO, coneRO, extendRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
-                             RefRO<ComponentSightCone>, RefRO<ComponentSightExtend>>()
+                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
+                             RefRO<ComponentSightExtend>>()
                          .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightClip>()
                          .WithEntityAccess())
             {
-                buffersCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transformRO.ValueRO, positionRO.ValueRO.Value,
-                    coneRO.ValueRO, extendRO.ValueRO, buffersPerceive[receiver], ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                ProcessReceiver(ref state, in receiverData, extendRO, in buffers, ref commands);
             }
 
             foreach (var (transformRO, positionRO, coneRO, clipRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
-                             RefRO<ComponentSightCone>, RefRO<ComponentSightClip>>()
+                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
+                             RefRO<ComponentSightClip>>()
                          .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithNone<ComponentSightExtend>()
                          .WithEntityAccess())
             {
-                buffersCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transformRO.ValueRO, positionRO.ValueRO.Value,
-                    coneRO.ValueRO, clipRO.ValueRO.RadiusSquared, ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                ProcessReceiver(ref state, in receiverData, clipRO, in buffers, ref commands);
             }
 
             foreach (var (transformRO, positionRO, coneRO, receiver) in SystemAPI
@@ -78,193 +75,224 @@ namespace Perception
                          .WithNone<ComponentSightExtend, ComponentSightClip>()
                          .WithEntityAccess())
             {
-                buffersCone[receiver].Clear();
-                ProcessReceiver(ref state, receiver, in transformRO.ValueRO,
-                    positionRO.ValueRO.Value, coneRO.ValueRO, ref commands);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                ProcessReceiver(ref state, in receiverData, in buffers, ref commands);
             }
 
             commands.Playback(state.EntityManager);
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, ComponentSightExtend extend, float clipRadiusSquared,
-            DynamicBuffer<BufferSightPerceive> bufferPerceive, ref EntityCommandBuffer commands)
+            in Receiver receiver, RefRO<ComponentSightExtend> extendRO, RefRO<ComponentSightClip> clipRO,
+            in Buffers buffers, ref EntityCommandBuffer commands)
         {
+            buffers.Cone[receiver.Entity].Clear();
+
             foreach (var (sourcePositionRO, source) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                ProcessSource(ref state, receiver, in transform, position, cone, extend,
-                    clipRadiusSquared, source, sourcePositionRO.ValueRO.Value,
-                    bufferPerceive, ref commands);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
+                    ? new ConeCast(in receiver, sourcePositionRO, extendRO)
+                    : new ConeCast(in receiver, sourcePositionRO);
+                ProcessSource(ref state, in receiver, in sourceData, clipRO, in coneCast, ref commands);
             }
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, ComponentSightExtend extend,
-            DynamicBuffer<BufferSightPerceive> bufferPerceive, ref EntityCommandBuffer commands)
+            in Receiver receiver, RefRO<ComponentSightExtend> extendRO,
+            in Buffers buffers, ref EntityCommandBuffer commands)
         {
+            buffers.Cone[receiver.Entity].Clear();
+
             foreach (var (sourcePositionRO, source) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                ProcessSource(ref state, receiver, in transform, position, cone,
-                    extend, source, sourcePositionRO.ValueRO.Value,
-                    bufferPerceive, ref commands);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
+                    ? new ConeCast(in receiver, sourcePositionRO, extendRO)
+                    : new ConeCast(in receiver, sourcePositionRO);
+                ProcessSource(ref state, in receiver, in sourceData, in coneCast, ref commands);
             }
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, float clipRadiusSquared,
-            ref EntityCommandBuffer commands)
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO,
+            in Buffers buffers, ref EntityCommandBuffer commands)
         {
+            buffers.Cone[receiver.Entity].Clear();
+
             foreach (var (sourcePositionRO, source) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                ProcessSource(ref state, receiver, in transform, position, cone, clipRadiusSquared,
-                    source, sourcePositionRO.ValueRO.Value, ref commands);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var coneCast = new ConeCast(in receiver, sourcePositionRO);
+                ProcessSource(ref state, in receiver, in sourceData, clipRO, in coneCast, ref commands);
             }
         }
 
         private void ProcessReceiver(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, ref EntityCommandBuffer commands)
+            in Receiver receiver, in Buffers buffers, ref EntityCommandBuffer commands)
         {
+            buffers.Cone[receiver.Entity].Clear();
+
             foreach (var (sourcePositionRO, source) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                ProcessSource(ref state, receiver, in transform, position, cone,
-                    source, sourcePositionRO.ValueRO.Value, ref commands);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var coneCast = new ConeCast(in receiver, sourcePositionRO);
+                ProcessSource(ref state, in receiver, in sourceData, in coneCast, ref commands);
             }
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, ComponentSightExtend extend, float clipRadiusSquared,
-            Entity source, float3 sourcePosition, DynamicBuffer<BufferSightPerceive> bufferPerceive,
-            ref EntityCommandBuffer commands)
+            in Receiver receiver, in Source source, RefRO<ComponentSightClip> clipRO,
+            in ConeCast coneCast, ref EntityCommandBuffer commands)
         {
-            var (anglesTan, radiusSquared) = PickCone(bufferPerceive, source, cone, extend);
-
-            if (IsInsideCone(in transform, position, anglesTan, clipRadiusSquared, radiusSquared, sourcePosition))
+            if (IsInsideCone(in coneCast, clipRO.ValueRO.RadiusSquared))
             {
-                commands.AppendToBuffer(receiver, new BufferSightCone
+                commands.AppendToBuffer(receiver.Entity, new BufferSightCone
                 {
-                    Source = source,
-                    Position = sourcePosition,
+                    Source = source.Entity,
+                    Position = source.Position,
                 });
             }
         }
 
         private void ProcessSource(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position, ComponentSightCone cone,
-            ComponentSightExtend extend, Entity source, float3 sourcePosition,
-            DynamicBuffer<BufferSightPerceive> bufferPerceive, ref EntityCommandBuffer commands)
+            in Receiver receiver, in Source source,
+            in ConeCast coneCast, ref EntityCommandBuffer commands)
         {
-            var (anglesTan, radiusSquared) = PickCone(bufferPerceive, source, cone, extend);
-
-            if (IsInsideCone(in transform, position, anglesTan, radiusSquared, sourcePosition))
+            if (IsInsideCone(in coneCast))
             {
-                commands.AppendToBuffer(receiver, new BufferSightCone
+                commands.AppendToBuffer(receiver.Entity, new BufferSightCone
                 {
-                    Source = source,
-                    Position = sourcePosition,
+                    Source = source.Entity,
+                    Position = source.Position,
                 });
             }
         }
 
-        private void ProcessSource(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, float clipRadiusSquared,
-            Entity source, float3 sourcePosition,
-            ref EntityCommandBuffer commands)
+        private bool IsInsideCone(in ConeCast coneCast, float clipRadiusSquared)
         {
-            if (IsInsideCone(in transform, position, cone.AnglesTan,
-                    clipRadiusSquared, cone.RadiusSquared, sourcePosition))
-            {
-                commands.AppendToBuffer(receiver, new BufferSightCone
-                {
-                    Source = source,
-                    Position = sourcePosition,
-                });
-            }
-        }
-
-        private void ProcessSource(ref SystemState state,
-            Entity receiver, in LocalToWorld transform, float3 position,
-            ComponentSightCone cone, Entity source, float3 sourcePosition,
-            ref EntityCommandBuffer commands)
-        {
-            if (IsInsideCone(in transform, position, cone.AnglesTan, cone.RadiusSquared, sourcePosition))
-            {
-                commands.AppendToBuffer(receiver, new BufferSightCone
-                {
-                    Source = source,
-                    Position = sourcePosition,
-                });
-            }
-        }
-
-        private bool IsInsideCone(
-            in LocalToWorld receiverTransform, float3 receiverPosition,
-            float2 anglesTan, float nearRadiusSquared, float farRadiusSquared, float3 sourcePosition)
-        {
-            var difference = sourcePosition - receiverPosition;
+            var difference = coneCast.Target - coneCast.Origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > farRadiusSquared || distanceSquared < nearRadiusSquared)
+            if (distanceSquared > coneCast.RadiusSquared || distanceSquared < clipRadiusSquared)
             {
                 return false;
             }
 
             var direction = difference * math.rsqrt(distanceSquared);
-            var directionLocal = receiverTransform.Value.TransformDirection(direction);
+            var directionLocal = coneCast.Transform.ValueRO.Value.TransformDirection(direction);
 
-            return directionLocal.x / directionLocal.z <= anglesTan.x
-                   && directionLocal.y / directionLocal.z <= anglesTan.y;
+            return directionLocal.x / directionLocal.z <= coneCast.AnglesTan.x
+                   && directionLocal.y / directionLocal.z <= coneCast.AnglesTan.y;
         }
 
-        private bool IsInsideCone(
-            in LocalToWorld receiverTransform, float3 receiverPosition,
-            float2 anglesTan, float radiusSquared, float3 sourcePosition)
+        private bool IsInsideCone(in ConeCast coneCast)
         {
-            var difference = sourcePosition - receiverPosition;
+            var difference = coneCast.Target - coneCast.Origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > radiusSquared)
+            if (distanceSquared > coneCast.RadiusSquared)
             {
                 return false;
             }
 
             var direction = difference * math.rsqrt(distanceSquared);
-            var directionLocal = receiverTransform.Value.TransformDirection(direction);
+            var directionLocal = coneCast.Transform.ValueRO.Value.TransformDirection(direction);
 
-            return directionLocal.x / directionLocal.z <= anglesTan.x
-                   && directionLocal.y / directionLocal.z <= anglesTan.y;
+            return directionLocal.x / directionLocal.z <= coneCast.AnglesTan.x
+                   && directionLocal.y / directionLocal.z <= coneCast.AnglesTan.y;
         }
 
-        private (float2 anglesTan, float radiusSquared) PickCone(
-            DynamicBuffer<BufferSightPerceive> bufferPerceive, Entity source,
-            ComponentSightCone cone, ComponentSightExtend extend)
+        private bool IsPerceived(Entity entity, DynamicBuffer<BufferSightPerceive> bufferPerceive)
         {
             foreach (var perceive in bufferPerceive)
             {
-                if (perceive.Source == source)
+                if (perceive.Source == entity)
                 {
-                    return (extend.AnglesTan, extend.RadiusSquared);
+                    return true;
                 }
             }
 
-            return (cone.AnglesTan, cone.RadiusSquared);
+            return false;
+        }
+
+        private readonly struct Buffers
+        {
+            public readonly BufferLookup<BufferSightPerceive> Perceive;
+            public readonly BufferLookup<BufferSightCone> Cone;
+
+            public Buffers(BufferLookup<BufferSightPerceive> perceive, BufferLookup<BufferSightCone> cone)
+            {
+                Perceive = perceive;
+                Cone = cone;
+            }
+        }
+
+        private readonly struct Receiver
+        {
+            public readonly float3 Position;
+            public readonly Entity Entity;
+            public readonly RefRO<LocalToWorld> Transform;
+            public readonly RefRO<ComponentSightCone> Cone;
+
+            public Receiver(Entity entity, float3 position, RefRO<LocalToWorld> transform, RefRO<ComponentSightCone> cone)
+            {
+                Entity = entity;
+                Position = position;
+                Transform = transform;
+                Cone = cone;
+            }
+        }
+
+        private readonly struct Source
+        {
+            public readonly float3 Position;
+            public readonly Entity Entity;
+
+            public Source(Entity entity, float3 position)
+            {
+                Entity = entity;
+                Position = position;
+            }
+        }
+
+        private readonly struct ConeCast
+        {
+            public readonly float3 Origin;
+            public readonly float3 Target;
+            public readonly float2 AnglesTan;
+            public readonly float RadiusSquared;
+            public readonly RefRO<LocalToWorld> Transform;
+
+            public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO)
+            {
+                Origin = receiver.Position;
+                Target = sourcePositionRO.ValueRO.Value;
+                AnglesTan = receiver.Cone.ValueRO.AnglesTan;
+                RadiusSquared = receiver.Cone.ValueRO.RadiusSquared;
+                Transform = receiver.Transform;
+            }
+
+            public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO, RefRO<ComponentSightExtend> extendRO)
+            {
+                Origin = receiver.Position;
+                Target = sourcePositionRO.ValueRO.Value;
+                AnglesTan = extendRO.ValueRO.AnglesTan;
+                RadiusSquared = extendRO.ValueRO.RadiusSquared;
+                Transform = receiver.Transform;
+            }
         }
     }
 }
