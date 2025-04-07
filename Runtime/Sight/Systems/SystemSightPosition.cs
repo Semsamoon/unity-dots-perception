@@ -20,13 +20,38 @@ namespace Perception
 
             foreach (var (transformRO, offsetRO, entity) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
-                         .WithAny<TagSightReceiver, TagSightSource>()
+                         .WithAll<TagSightReceiver, TagSightSource>()
                          .WithNone<ComponentSightPosition>()
                          .WithEntityAccess())
             {
                 commands.AddComponent(entity, new ComponentSightPosition
                 {
-                    Value = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Value),
+                    Receiver = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Receiver),
+                    Source = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Source),
+                });
+            }
+
+            foreach (var (transformRO, offsetRO, entity) in SystemAPI
+                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAll<TagSightSource>()
+                         .WithNone<ComponentSightPosition, TagSightReceiver>()
+                         .WithEntityAccess())
+            {
+                commands.AddComponent(entity, new ComponentSightPosition
+                {
+                    Source = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Source),
+                });
+            }
+
+            foreach (var (transformRO, offsetRO, entity) in SystemAPI
+                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAll<TagSightReceiver>()
+                         .WithNone<ComponentSightPosition, TagSightSource>()
+                         .WithEntityAccess())
+            {
+                commands.AddComponent(entity, new ComponentSightPosition
+                {
+                    Receiver = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Receiver),
                 });
             }
 
@@ -38,15 +63,33 @@ namespace Perception
             {
                 commands.AddComponent(entity, new ComponentSightPosition
                 {
-                    Value = transformRO.ValueRO.Position,
+                    Receiver = transformRO.ValueRO.Position,
+                    Source = transformRO.ValueRO.Position,
                 });
             }
 
             foreach (var (positionRW, transformRO, offsetRO) in SystemAPI
                          .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
-                         .WithAny<TagSightReceiver, TagSightSource>())
+                         .WithAll<TagSightReceiver, TagSightSource>())
             {
-                positionRW.ValueRW.Value = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Value);
+                positionRW.ValueRW.Receiver = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Receiver);
+                positionRW.ValueRW.Source = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Source);
+            }
+
+            foreach (var (positionRW, transformRO, offsetRO) in SystemAPI
+                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAll<TagSightSource>()
+                         .WithNone<TagSightReceiver>())
+            {
+                positionRW.ValueRW.Source = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Source);
+            }
+
+            foreach (var (positionRW, transformRO, offsetRO) in SystemAPI
+                         .Query<RefRW<ComponentSightPosition>, RefRO<LocalToWorld>, RefRO<ComponentSightOffset>>()
+                         .WithAll<TagSightReceiver>()
+                         .WithNone<TagSightSource>())
+            {
+                positionRW.ValueRW.Receiver = transformRO.ValueRO.Value.TransformPoint(in offsetRO.ValueRO.Receiver);
             }
 
             foreach (var (positionRW, transformRO) in SystemAPI
@@ -54,7 +97,8 @@ namespace Perception
                          .WithAny<TagSightReceiver, TagSightSource>()
                          .WithNone<ComponentSightOffset>())
             {
-                positionRW.ValueRW.Value = transformRO.ValueRO.Position;
+                positionRW.ValueRW.Receiver = transformRO.ValueRO.Position;
+                positionRW.ValueRW.Source = transformRO.ValueRO.Position;
             }
 
             commands.Playback(state.EntityManager);

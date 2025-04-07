@@ -46,7 +46,7 @@ namespace Perception
                          .WithAll<BufferSightPerceive, BufferSightCone>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver);
                 ProcessReceiver(ref state, in receiverData, clipRO, buffers.Child[receiver], physicsRW, in buffers, ref commands);
             }
 
@@ -57,7 +57,7 @@ namespace Perception
                          .WithNone<BufferSightChild>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver);
                 ProcessReceiver(ref state, in receiverData, clipRO, physicsRW, in buffers, ref commands);
             }
 
@@ -68,7 +68,7 @@ namespace Perception
                          .WithNone<ComponentSightClip>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver);
                 ProcessReceiver(ref state, in receiverData, buffers.Child[receiver], physicsRW, in buffers, ref commands);
             }
 
@@ -79,7 +79,7 @@ namespace Perception
                          .WithNone<ComponentSightClip, BufferSightChild>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver);
                 ProcessReceiver(ref state, in receiverData, physicsRW, in buffers, ref commands);
             }
 

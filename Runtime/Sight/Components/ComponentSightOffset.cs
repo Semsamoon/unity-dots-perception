@@ -8,6 +8,7 @@ namespace Perception
     /// </summary>
     public struct ComponentSightOffset : IComponentData
     {
-        public float3 Value;
+        public float3 Receiver;
+        public float3 Source;
     }
 }

@@ -43,7 +43,7 @@ namespace Perception
                          .WithAll<TagSightReceiver, BufferSightCone>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
                 ProcessReceiver(ref state, in receiverData, extendRO, clipRO, in buffers, ref commands);
             }
 
@@ -54,7 +54,7 @@ namespace Perception
                          .WithNone<ComponentSightClip>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
                 ProcessReceiver(ref state, in receiverData, extendRO, in buffers, ref commands);
             }
 
@@ -65,7 +65,7 @@ namespace Perception
                          .WithNone<ComponentSightExtend>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
                 ProcessReceiver(ref state, in receiverData, clipRO, in buffers, ref commands);
             }
 
@@ -75,7 +75,7 @@ namespace Perception
                          .WithNone<ComponentSightExtend, ComponentSightClip>()
                          .WithEntityAccess())
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value, transformRO, coneRO);
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
                 ProcessReceiver(ref state, in receiverData, in buffers, ref commands);
             }
 
@@ -93,7 +93,7 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
                 var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
                     ? new ConeCast(in receiver, sourcePositionRO, extendRO)
                     : new ConeCast(in receiver, sourcePositionRO);
@@ -112,7 +112,7 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
                 var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
                     ? new ConeCast(in receiver, sourcePositionRO, extendRO)
                     : new ConeCast(in receiver, sourcePositionRO);
@@ -131,7 +131,7 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
                 var coneCast = new ConeCast(in receiver, sourcePositionRO);
                 ProcessSource(ref state, in receiver, in sourceData, clipRO, in coneCast, ref commands);
             }
@@ -147,7 +147,7 @@ namespace Perception
                          .WithAll<TagSightSource>()
                          .WithEntityAccess())
             {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Value);
+                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
                 var coneCast = new ConeCast(in receiver, sourcePositionRO);
                 ProcessSource(ref state, in receiver, in sourceData, in coneCast, ref commands);
             }
@@ -279,7 +279,7 @@ namespace Perception
             public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO)
             {
                 Origin = receiver.Position;
-                Target = sourcePositionRO.ValueRO.Value;
+                Target = sourcePositionRO.ValueRO.Receiver;
                 AnglesTan = receiver.Cone.ValueRO.AnglesTan;
                 RadiusSquared = receiver.Cone.ValueRO.RadiusSquared;
                 Transform = receiver.Transform;
@@ -288,7 +288,7 @@ namespace Perception
             public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO, RefRO<ComponentSightExtend> extendRO)
             {
                 Origin = receiver.Position;
-                Target = sourcePositionRO.ValueRO.Value;
+                Target = sourcePositionRO.ValueRO.Receiver;
                 AnglesTan = extendRO.ValueRO.AnglesTan;
                 RadiusSquared = extendRO.ValueRO.RadiusSquared;
                 Transform = receiver.Transform;
