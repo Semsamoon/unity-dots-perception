@@ -11,6 +11,10 @@ namespace Perception.Tests
 {
     public sealed class Sight
     {
+        private readonly WaitForSeconds _awaitPhysics = new(Time.fixedDeltaTime * 1.2f);
+        private readonly BlobAssetReference<Unity.Physics.Collider> _collider = Unity.Physics.BoxCollider.Create(
+            new BoxGeometry { Orientation = quaternion.identity, Size = new float3(1, 1, 1) }, CollisionFilter.Default);
+
         [UnityTest]
         public IEnumerator Position()
         {
@@ -37,15 +41,9 @@ namespace Perception.Tests
         [UnityTest]
         public IEnumerator Cone()
         {
-            var awaitPhysics = new WaitForSeconds(0.1f);
-            var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
-            {
-                Orientation = quaternion.identity, Size = new float3(1, 1, 1)
-            }, CollisionFilter.Default);
-
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(radiusSquared: 4).Collider(collider).Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(radiusSquared: 4).Collider(_collider).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(_collider).Build();
 
             yield return null;
             Assert.True(entityManager.HasBuffer<BufferSightCone>(receiver));
@@ -72,47 +70,40 @@ namespace Perception.Tests
 
             entityManager.AddComponentData(receiver, new ComponentSightOffset { Value = new float3(2, 2, -2) });
             entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
             entityManager.AddComponentData(receiver, new ComponentSightExtend { AnglesTan = new float2(5, 5), RadiusSquared = 25 });
             entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(-3, -3, 3)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
             entityManager.DestroyEntity(receiver);
             entityManager.DestroyEntity(source);
-            collider.Dispose();
         }
 
         [UnityTest]
         public IEnumerator PerceiveSingle()
         {
-            var awaitPhysics = new WaitForSeconds(0.1f);
-            var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
-            {
-                Orientation = quaternion.identity, Size = new float3(1, 1, 1)
-            }, CollisionFilter.Default);
-
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RaySingle()
-                .Cone(new float2(float.MaxValue, float.MaxValue), 100).Collider(collider).Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, 5)).Source().Collider(collider).Build();
-            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(collider).Build();
+                .Cone(new float2(float.MaxValue, float.MaxValue), 100).Collider(_collider).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 5)).Source().Collider(_collider).Build();
+            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.True(entityManager.HasBuffer<BufferSightPerceive>(receiver));
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.SetComponentData(obstacle, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 7)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
             Assert.AreEqual(source, entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Source);
             Assert.AreEqual(new float3(0, 0, 5), entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Position);
 
             entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 26 });
             entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesTan = new float2(1, 1), RadiusSquared = 49 });
-            yield return awaitPhysics;
+            yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
@@ -120,54 +111,47 @@ namespace Perception.Tests
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 5, 5)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.AddBuffer<BufferSightChild>(source);
             entityManager.GetBuffer<BufferSightChild>(source).Add(new BufferSightChild { Value = obstacle });
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 5)) });
             entityManager.SetComponentData(obstacle, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 3)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.DestroyEntity(receiver);
             entityManager.DestroyEntity(source);
             entityManager.DestroyEntity(obstacle);
-            collider.Dispose();
         }
 
         [UnityTest]
         public IEnumerator PerceiveMultiple()
         {
-            var awaitPhysics = new WaitForSeconds(0.1f);
-            var collider = Unity.Physics.BoxCollider.Create(new BoxGeometry
-            {
-                Orientation = quaternion.identity, Size = new float3(1, 1, 1)
-            }, CollisionFilter.Default);
-
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RayMultiple()
                 .Cone(new float2(float.MaxValue, float.MaxValue), 100)
-                .RayOffset(new float3(0, 0.5f, 0)).Collider(collider).Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(collider).Build();
-            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(collider).Build();
+                .RayOffset(new float3(0, 0.5f, 0)).Collider(_collider).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(_collider).Build();
+            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.True(entityManager.HasBuffer<BufferSightPerceive>(receiver));
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0.6f, 5.5f)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
             Assert.AreEqual(source, entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Source);
             Assert.AreEqual(new float3(0, 0.6f, 5.5f), entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Position);
 
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, -0.6f, 5.5f)) });
-            yield return awaitPhysics;
+            yield return _awaitPhysics;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.GetBuffer<BufferSightRayOffset>(receiver).Add(new BufferSightRayOffset { Value = new float3(0, -0.5f, 0) });
-            yield return awaitPhysics;
+            yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
             entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 32 });
@@ -177,7 +161,6 @@ namespace Perception.Tests
             entityManager.DestroyEntity(receiver);
             entityManager.DestroyEntity(source);
             entityManager.DestroyEntity(obstacle);
-            collider.Dispose();
         }
 
         private struct EntityBuilder
