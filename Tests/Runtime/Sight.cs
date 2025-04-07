@@ -20,7 +20,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().Offset(new float3(1, 1, 1)).Build();
-            var source = new EntityBuilder(entityManager, new float3(2, 2, 2)).Source().Position().Build();
+            var source = new EntityBuilder(entityManager, new float3(2, 2, 2)).Source().Build();
 
             yield return null;
             Assert.True(entityManager.HasComponent<ComponentSightPosition>(receiver));
@@ -207,12 +207,6 @@ namespace Perception.Tests
                 }
 
                 _entityManager.GetBuffer<BufferSightRayOffset>(_entity).Add(new BufferSightRayOffset { Value = offset });
-                return this;
-            }
-
-            public EntityBuilder Position(float3 position = default)
-            {
-                _entityManager.AddComponentData(_entity, new ComponentSightPosition { Value = position });
                 return this;
             }
 
