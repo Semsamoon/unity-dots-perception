@@ -25,14 +25,14 @@ namespace Perception.Tests
             yield return null;
             Assert.True(entityManager.HasComponent<ComponentSightPosition>(receiver));
             Assert.False(entityManager.HasComponent<ComponentSightOffset>(source));
-            Assert.AreEqual(new float3(1, 1, 1), entityManager.GetComponentData<ComponentSightPosition>(receiver).Value);
-            Assert.AreEqual(new float3(2, 2, 2), entityManager.GetComponentData<ComponentSightPosition>(source).Value);
+            Assert.AreEqual(new float3(1, 1, 1), entityManager.GetComponentData<ComponentSightPosition>(receiver).Receiver);
+            Assert.AreEqual(new float3(2, 2, 2), entityManager.GetComponentData<ComponentSightPosition>(source).Source);
 
-            entityManager.SetComponentData(receiver, new ComponentSightOffset { Value = new float3(3, 3, 3) });
+            entityManager.SetComponentData(receiver, new ComponentSightOffset { Receiver = new float3(3, 3, 3) });
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(4, 4, 4)) });
             yield return null;
-            Assert.AreEqual(new float3(3, 3, 3), entityManager.GetComponentData<ComponentSightPosition>(receiver).Value);
-            Assert.AreEqual(new float3(4, 4, 4), entityManager.GetComponentData<ComponentSightPosition>(source).Value);
+            Assert.AreEqual(new float3(3, 3, 3), entityManager.GetComponentData<ComponentSightPosition>(receiver).Receiver);
+            Assert.AreEqual(new float3(4, 4, 4), entityManager.GetComponentData<ComponentSightPosition>(source).Source);
 
             entityManager.DestroyEntity(receiver);
             entityManager.DestroyEntity(source);
@@ -68,7 +68,7 @@ namespace Perception.Tests
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.AddComponentData(receiver, new ComponentSightOffset { Value = new float3(2, 2, -2) });
+            entityManager.AddComponentData(receiver, new ComponentSightOffset { Receiver = new float3(2, 2, -2) });
             entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
             yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
@@ -218,7 +218,7 @@ namespace Perception.Tests
 
             public EntityBuilder Offset(float3 offset = default)
             {
-                _entityManager.AddComponentData(_entity, new ComponentSightOffset { Value = offset });
+                _entityManager.AddComponentData(_entity, new ComponentSightOffset { Receiver = offset, Source = offset });
                 return this;
             }
 
