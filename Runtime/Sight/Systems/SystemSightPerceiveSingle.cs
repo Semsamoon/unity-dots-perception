@@ -40,10 +40,32 @@ namespace Perception
                 SystemAPI.GetBufferLookup<BufferSightChild>(),
                 SystemAPI.GetBufferLookup<BufferSightCone>());
 
+            foreach (var (positionRO, clipRO, receiver) in SystemAPI
+                         .Query<RefRO<ComponentSightPosition>, RefRO<ComponentSightClip>>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
+                         .WithEntityAccess())
+            {
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                ProcessReceiver(ref state, in receiverData, clipRO, buffers.Child[receiver], physicsRW, in buffers, ref commands);
+            }
+
+            foreach (var (positionRO, clipRO, receiver) in SystemAPI
+                         .Query<RefRO<ComponentSightPosition>, RefRO<ComponentSightClip>>()
+                         .WithAll<TagSightReceiver, TagSightRaySingle>()
+                         .WithAll<BufferSightPerceive, BufferSightCone>()
+                         .WithNone<BufferSightChild>()
+                         .WithEntityAccess())
+            {
+                var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
+                ProcessReceiver(ref state, in receiverData, clipRO, physicsRW, in buffers, ref commands);
+            }
+
             foreach (var (positionRO, receiver) in SystemAPI
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle, BufferSightChild>()
                          .WithAll<BufferSightPerceive, BufferSightCone>()
+                         .WithNone<ComponentSightClip>()
                          .WithEntityAccess())
             {
                 var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
@@ -54,7 +76,7 @@ namespace Perception
                          .Query<RefRO<ComponentSightPosition>>()
                          .WithAll<TagSightReceiver, TagSightRaySingle>()
                          .WithAll<BufferSightPerceive, BufferSightCone>()
-                         .WithNone<BufferSightChild>()
+                         .WithNone<ComponentSightClip, BufferSightChild>()
                          .WithEntityAccess())
             {
                 var receiverData = new Receiver(receiver, positionRO.ValueRO.Value);
@@ -62,6 +84,49 @@ namespace Perception
             }
 
             commands.Playback(state.EntityManager);
+        }
+
+        private void ProcessReceiver(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO, DynamicBuffer<BufferSightChild> receiverBufferChild,
+            RefRW<PhysicsWorldSingleton> physicsRW, in Buffers buffers, ref EntityCommandBuffer commands)
+        {
+            buffers.Perceive[receiver.Entity].Clear();
+
+            foreach (var cone in buffers.Cone[receiver.Entity])
+            {
+                var source = new Source(cone.Source, cone.Position);
+                var raycast = new RayCast(in receiver, in source);
+
+                if (buffers.Child.TryGetBuffer(cone.Source, out var sourceBufferChild))
+                {
+                    ProcessSource(ref state, in receiver, clipRO, receiverBufferChild,
+                        in source, sourceBufferChild, in raycast, physicsRW, ref commands);
+                    continue;
+                }
+
+                ProcessSource(ref state, in receiver, clipRO, receiverBufferChild, in source, in raycast, physicsRW, ref commands);
+            }
+        }
+
+        private void ProcessReceiver(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO,
+            RefRW<PhysicsWorldSingleton> physicsRW, in Buffers buffers, ref EntityCommandBuffer commands)
+        {
+            buffers.Perceive[receiver.Entity].Clear();
+
+            foreach (var cone in buffers.Cone[receiver.Entity])
+            {
+                var source = new Source(cone.Source, cone.Position);
+                var raycast = new RayCast(in receiver, in source);
+
+                if (buffers.Child.TryGetBuffer(cone.Source, out var bufferChild))
+                {
+                    ProcessSource(ref state, in receiver, clipRO, in source, bufferChild, in raycast, physicsRW, ref commands);
+                    continue;
+                }
+
+                ProcessSource(ref state, in receiver, clipRO, in source, in raycast, physicsRW, ref commands);
+            }
         }
 
         private void ProcessReceiver(ref SystemState state,
@@ -107,6 +172,59 @@ namespace Perception
         }
 
         private void ProcessSource(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO, DynamicBuffer<BufferSightChild> receiverBufferChild,
+            in Source source, DynamicBuffer<BufferSightChild> sourceBufferChild,
+            in RayCast rayCast, RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
+        {
+            var collector = new CollectorClosestIgnoreEntityAndChildWithClip(receiver.Entity, receiverBufferChild, rayCast.Clip(clipRO));
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, sourceBufferChild))
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+            }
+        }
+
+        private void ProcessSource(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO, in Source source, DynamicBuffer<BufferSightChild> bufferChild,
+            in RayCast rayCast, RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
+        {
+            var collector = new CollectorClosestIgnoreEntityWithClip(receiver.Entity, rayCast.Clip(clipRO));
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, bufferChild))
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+            }
+        }
+
+        private void ProcessSource(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO, DynamicBuffer<BufferSightChild> bufferChild, in Source source,
+            in RayCast rayCast, RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
+        {
+            var collector = new CollectorClosestIgnoreEntityAndChildWithClip(receiver.Entity, bufferChild, rayCast.Clip(clipRO));
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (collector.Hit.Entity == source.Entity)
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+            }
+        }
+
+        private void ProcessSource(ref SystemState state,
+            in Receiver receiver, RefRO<ComponentSightClip> clipRO, in Source source,
+            in RayCast rayCast, RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
+        {
+            var collector = new CollectorClosestIgnoreEntityWithClip(receiver.Entity, rayCast.Clip(clipRO));
+            physicsRW.ValueRO.CollisionWorld.CastRay(rayCast.Input, ref collector);
+
+            if (collector.Hit.Entity == source.Entity)
+            {
+                AppendPerceive(in receiver, in source, ref commands);
+            }
+        }
+
+        private void ProcessSource(ref SystemState state,
             in Receiver receiver, DynamicBuffer<BufferSightChild> receiverBufferChild,
             in Source source, DynamicBuffer<BufferSightChild> sourceBufferChild,
             in RayCast rayCast, RefRW<PhysicsWorldSingleton> physicsRW, ref EntityCommandBuffer commands)
@@ -116,11 +234,7 @@ namespace Perception
 
             if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, sourceBufferChild))
             {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
+                AppendPerceive(in receiver, in source, ref commands);
             }
         }
 
@@ -133,11 +247,7 @@ namespace Perception
 
             if (!CollectorClosestIgnoreEntityAndChild.CheckHit(collector.Hit, source.Entity, bufferChild))
             {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
+                AppendPerceive(in receiver, in source, ref commands);
             }
         }
 
@@ -150,11 +260,7 @@ namespace Perception
 
             if (collector.Hit.Entity == source.Entity)
             {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
+                AppendPerceive(in receiver, in source, ref commands);
             }
         }
 
@@ -167,12 +273,17 @@ namespace Perception
 
             if (collector.Hit.Entity == source.Entity)
             {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
+                AppendPerceive(in receiver, in source, ref commands);
             }
+        }
+
+        private void AppendPerceive(in Receiver receiver, in Source source, ref EntityCommandBuffer commands)
+        {
+            commands.AppendToBuffer(receiver.Entity, new BufferSightPerceive
+            {
+                Source = source.Entity,
+                Position = source.Position,
+            });
         }
 
         private readonly struct Buffers
@@ -228,6 +339,11 @@ namespace Perception
                     End = source.Position,
                     Filter = CollisionFilter.Default,
                 };
+            }
+
+            public float Clip(RefRO<ComponentSightClip> clipRO)
+            {
+                return math.sqrt(clipRO.ValueRO.RadiusSquared / math.lengthsq(Input.End - Input.Start));
             }
         }
     }
