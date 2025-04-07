@@ -4,7 +4,7 @@ using Unity.Mathematics;
 namespace Perception
 {
     /// <summary>
-    /// Adds offset to the receiver's cone of vision and source's position.
+    /// Adds offset to the receiver's cone of vision position and source's position.
     /// </summary>
     public struct ComponentSightOffset : IComponentData
     {
