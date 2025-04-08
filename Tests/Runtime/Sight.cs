@@ -163,6 +163,53 @@ namespace Perception.Tests
             entityManager.DestroyEntity(obstacle);
         }
 
+        [UnityTest]
+        public IEnumerator Memory()
+        {
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle()
+                .Cone(float2.zero, 4).Collider(_collider).Memory(0.05f).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(_collider).Build();
+            var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
+
+            yield return _awaitPhysics;
+            Assert.True(entityManager.HasBuffer<BufferSightMemory>(receiver));
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 4)) });
+            yield return null;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+            Assert.AreEqual(0.05f, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Time);
+            Assert.AreEqual(source, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Source);
+            Assert.AreEqual(new float3(0, 0, 2), entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Position);
+
+            yield return null;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+            Assert.Greater(0.05f, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Time);
+
+            yield return new WaitForSeconds(0.05f);
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 2)) });
+            yield return _awaitPhysics;
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 4)) });
+            yield return _awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+
+            entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 2)) });
+            yield return _awaitPhysics;
+            Assert.AreEqual(0, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+
+            entityManager.SetComponentData(obstacle, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 1)) });
+            yield return _awaitPhysics;
+            Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
+
+            entityManager.DestroyEntity(receiver);
+            entityManager.DestroyEntity(source);
+            entityManager.DestroyEntity(obstacle);
+        }
+
         private struct EntityBuilder
         {
             private EntityManager _entityManager;
@@ -213,6 +260,13 @@ namespace Perception.Tests
             public EntityBuilder Offset(float3 offset = default)
             {
                 _entityManager.AddComponentData(_entity, new ComponentSightOffset { Receiver = offset, Source = offset });
+                return this;
+            }
+
+            public EntityBuilder Memory(float time = 0)
+            {
+                _entityManager.AddComponentData(_entity, new ComponentSightMemory { Time = time });
+                _entityManager.AddBuffer<BufferSightMemory>(_entity);
                 return this;
             }
 
