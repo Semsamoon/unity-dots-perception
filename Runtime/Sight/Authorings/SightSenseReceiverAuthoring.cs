@@ -6,14 +6,17 @@ namespace Perception
 {
     public class SightSenseReceiverAuthoring : MonoBehaviour
     {
+        [Header("Cone of Vision")]
         [SerializeField] protected float _coneRadius;
         [SerializeField] protected float2 _coneAnglesDegrees;
 
+        [Header("Cone Modifications")]
         [SerializeField] protected float _clipRadius;
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
         [SerializeField] protected float3 _offset;
 
+        [Header("Additional Settings")]
         [SerializeField] protected float _memoryTime;
         [SerializeField] protected GameObject[] _children;
         [SerializeField] protected float3[] _rayOffsets;
