@@ -191,11 +191,13 @@ namespace Perception
                 return false;
             }
 
-            var direction = difference * math.rsqrt(distanceSquared);
-            var directionLocal = coneCast.Transform.ValueRO.Value.TransformDirection(direction);
+            var directionLocal = coneCast.Transform.ValueRO.Value.InverseTransformDirection(difference);
+            var xSquared = directionLocal.x * directionLocal.x;
+            var ySquared = directionLocal.y * directionLocal.y;
+            var zSquared = directionLocal.z * directionLocal.z;
 
-            return directionLocal.x / directionLocal.z <= coneCast.AnglesTan.x
-                   && directionLocal.y / directionLocal.z <= coneCast.AnglesTan.y;
+            return directionLocal.z / math.sqrt(xSquared + zSquared) >= coneCast.AnglesCos.x
+                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= coneCast.AnglesCos.y;
         }
 
         private bool IsInsideCone(in ConeCast coneCast)
@@ -208,11 +210,13 @@ namespace Perception
                 return false;
             }
 
-            var direction = difference * math.rsqrt(distanceSquared);
-            var directionLocal = coneCast.Transform.ValueRO.Value.TransformDirection(direction);
+            var directionLocal = coneCast.Transform.ValueRO.Value.InverseTransformDirection(difference);
+            var xSquared = directionLocal.x * directionLocal.x;
+            var ySquared = directionLocal.y * directionLocal.y;
+            var zSquared = directionLocal.z * directionLocal.z;
 
-            return directionLocal.x / directionLocal.z <= coneCast.AnglesTan.x
-                   && directionLocal.y / directionLocal.z <= coneCast.AnglesTan.y;
+            return directionLocal.z / math.sqrt(xSquared + zSquared) >= coneCast.AnglesCos.x
+                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= coneCast.AnglesCos.y;
         }
 
         private bool IsPerceived(Entity entity, DynamicBuffer<BufferSightPerceive> bufferPerceive)
@@ -272,7 +276,7 @@ namespace Perception
         {
             public readonly float3 Origin;
             public readonly float3 Target;
-            public readonly float2 AnglesTan;
+            public readonly float2 AnglesCos;
             public readonly float RadiusSquared;
             public readonly RefRO<LocalToWorld> Transform;
 
@@ -280,7 +284,7 @@ namespace Perception
             {
                 Origin = receiver.Position;
                 Target = sourcePositionRO.ValueRO.Receiver;
-                AnglesTan = receiver.Cone.ValueRO.AnglesTan;
+                AnglesCos = receiver.Cone.ValueRO.AnglesCos;
                 RadiusSquared = receiver.Cone.ValueRO.RadiusSquared;
                 Transform = receiver.Transform;
             }
@@ -289,7 +293,7 @@ namespace Perception
             {
                 Origin = receiver.Position;
                 Target = sourcePositionRO.ValueRO.Receiver;
-                AnglesTan = extendRO.ValueRO.AnglesTan;
+                AnglesCos = extendRO.ValueRO.AnglesCos;
                 RadiusSquared = extendRO.ValueRO.RadiusSquared;
                 Transform = receiver.Transform;
             }

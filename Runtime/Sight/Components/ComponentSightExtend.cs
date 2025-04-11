@@ -8,7 +8,7 @@ namespace Perception
     /// </summary>
     public struct ComponentSightExtend : IComponentData
     {
-        public float2 AnglesTan;
+        public float2 AnglesCos;
         public float RadiusSquared;
     }
 }

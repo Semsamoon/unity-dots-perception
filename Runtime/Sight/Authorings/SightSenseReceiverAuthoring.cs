@@ -27,7 +27,7 @@ namespace Perception
                 AddComponent(entity, new ComponentSightCone
                 {
                     RadiusSquared = authoring._coneRadius * authoring._coneRadius,
-                    AnglesTan = math.tan(math.radians(authoring._coneAnglesDegrees)),
+                    AnglesCos = math.cos(math.radians(authoring._coneAnglesDegrees / 2)),
                 });
 
                 if (authoring._clipRadius > 0)
@@ -46,7 +46,7 @@ namespace Perception
                     AddComponent(entity, new ComponentSightExtend
                     {
                         RadiusSquared = extendRadius * extendRadius,
-                        AnglesTan = math.tan(math.radians(extendAnglesDegrees)),
+                        AnglesCos = math.cos(math.radians(extendAnglesDegrees / 2)),
                     });
                 }
 
