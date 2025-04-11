@@ -42,7 +42,7 @@ namespace Perception.Tests
         public IEnumerator Cone()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(radiusSquared: 4).Collider(_collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(new float2(1, 1), 4).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(_collider).Build();
 
             yield return null;
@@ -59,7 +59,7 @@ namespace Perception.Tests
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesTan = new float2(1, 1), RadiusSquared = 16 });
+            entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 16 });
             entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
             yield return null;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
@@ -73,7 +73,7 @@ namespace Perception.Tests
             yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-            entityManager.AddComponentData(receiver, new ComponentSightExtend { AnglesTan = new float2(5, 5), RadiusSquared = 25 });
+            entityManager.AddComponentData(receiver, new ComponentSightExtend { AnglesCos = new float2(0.17f, 0.17f), RadiusSquared = 25 });
             entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(-3, -3, 3)) });
             yield return _awaitPhysics;
             Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
@@ -87,7 +87,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RaySingle()
-                .Cone(new float2(float.MaxValue, float.MaxValue), 100).Collider(_collider).Build();
+                .Cone(new float2(-1, -1), 100).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5)).Source().Collider(_collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
@@ -102,7 +102,7 @@ namespace Perception.Tests
             Assert.AreEqual(new float3(0, 0, 5), entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Position);
 
             entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 26 });
-            entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesTan = new float2(1, 1), RadiusSquared = 49 });
+            entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 49 });
             yield return null;
             Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
@@ -131,8 +131,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RayMultiple()
-                .Cone(new float2(float.MaxValue, float.MaxValue), 100)
-                .RayOffset(new float3(0, 0.5f, 0)).Collider(_collider).Build();
+                .Cone(new float2(-1, -1), 100).RayOffset(new float3(0, 0.5f, 0)).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(_collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
@@ -168,7 +167,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RaySingle()
-                .Cone(float2.zero, 4).Collider(_collider).Memory(0.05f).Build();
+                .Cone(new float2(1, 1), 4).Collider(_collider).Memory(0.05f).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(_collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
@@ -270,11 +269,11 @@ namespace Perception.Tests
                 return this;
             }
 
-            public EntityBuilder Cone(float2 anglesTan = default, float radiusSquared = 0)
+            public EntityBuilder Cone(float2 anglesCos = default, float radiusSquared = 0)
             {
                 _entityManager.AddComponentData(_entity, new ComponentSightCone
                 {
-                    AnglesTan = anglesTan, RadiusSquared = radiusSquared
+                    AnglesCos = anglesCos, RadiusSquared = radiusSquared
                 });
                 return this;
             }
