@@ -1,0 +1,26 @@
+{
+    "name": "semsamoon.unity-dots-perception.editor",
+    "rootNamespace": "Perception.Editor",
+    "references": [
+        "semsamoon.unity-dots-perception.runtime",
+        "UnityEngine.TestRunner",
+        "Unity.Entities",
+        "Unity.Entities.Hybrid",
+        "Unity.Collections",
+        "Unity.Mathematics",
+        "Unity.Transforms",
+        "Unity.Physics",
+        "Unity.Burst"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
