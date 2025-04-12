@@ -6,6 +6,7 @@ namespace Perception
 {
     public class SightSenseSourceAuthoring : MonoBehaviour
     {
+        [Header("Settings")]
         [SerializeField] protected float3 _offset;
         [SerializeField] protected GameObject[] _children;
 
