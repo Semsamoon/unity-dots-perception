@@ -21,5 +21,23 @@ namespace Perception
                 Debug.DrawLine(start, end, color);
             }
         }
+
+        public static void DrawOctahedron(float3 center, float3 size, Color color)
+        {
+            var verticalPoint = new float3(0, size.y / 2, 0);
+
+            var horizontalPoints = new float3x4(
+                new float3(size.x / 2, 0, size.z / 2),
+                new float3(-size.x / 2, 0, size.z / 2),
+                new float3(-size.x / 2, 0, -size.z / 2),
+                new float3(size.x / 2, 0, -size.z / 2));
+
+            for (var i = 0; i < 4; i++)
+            {
+                Debug.DrawLine(center + horizontalPoints[i], center + verticalPoint, color);
+                Debug.DrawLine(center + horizontalPoints[i], center - verticalPoint, color);
+                Debug.DrawLine(center + horizontalPoints[i], center + horizontalPoints[(i + 1) % 4], color);
+            }
+        }
     }
 }
