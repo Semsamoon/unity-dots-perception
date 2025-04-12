@@ -30,6 +30,16 @@ namespace Perception
                 commands.AddBuffer<BufferSightCone>(receiver);
             }
 
+            foreach (var receiver in SystemAPI
+                         .QueryBuilder()
+                         .WithAll<TagSightReceiver>()
+                         .WithNone<BufferSightPerceive>()
+                         .Build()
+                         .ToEntityArray(Allocator.Temp))
+            {
+                commands.AddBuffer<BufferSightPerceive>(receiver);
+            }
+
             commands.Playback(state.EntityManager);
             commands = new EntityCommandBuffer(Allocator.Temp);
 
@@ -40,7 +50,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, clipRO, extendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightClip>, RefRO<ComponentSightExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
                          .WithEntityAccess())
             {
                 var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
@@ -50,7 +60,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, extendRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
                          .WithNone<ComponentSightClip>()
                          .WithEntityAccess())
             {
@@ -61,7 +71,7 @@ namespace Perception
             foreach (var (transformRO, positionRO, coneRO, clipRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightClip>>()
-                         .WithAll<TagSightReceiver, BufferSightCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
                          .WithNone<ComponentSightExtend>()
                          .WithEntityAccess())
             {
@@ -71,7 +81,7 @@ namespace Perception
 
             foreach (var (transformRO, positionRO, coneRO, receiver) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>>()
-                         .WithAll<TagSightReceiver, BufferSightCone>()
+                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
                          .WithNone<ComponentSightExtend, ComponentSightClip>()
                          .WithEntityAccess())
             {

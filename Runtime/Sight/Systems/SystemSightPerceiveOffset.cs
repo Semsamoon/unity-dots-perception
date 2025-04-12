@@ -21,19 +21,6 @@ namespace Perception
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var receiver in SystemAPI
-                         .QueryBuilder()
-                         .WithAll<TagSightReceiver>()
-                         .WithNone<BufferSightPerceive>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
-            {
-                commands.AddBuffer<BufferSightPerceive>(receiver);
-            }
-
-            commands.Playback(state.EntityManager);
-            commands = new EntityCommandBuffer(Allocator.Temp);
-
             var physicsRW = SystemAPI.GetSingletonRW<PhysicsWorldSingleton>();
             var buffers = new Buffers(
                 SystemAPI.GetBufferLookup<BufferSightRayOffset>(),
