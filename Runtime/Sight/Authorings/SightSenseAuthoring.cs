@@ -4,8 +4,10 @@ using UnityEngine;
 
 namespace Perception
 {
-    public class SightSenseReceiverAuthoring : MonoBehaviour
+    public class SightSenseAuthoring : MonoBehaviour
     {
+        [SerializeField] protected bool _isReceiver;
+
         [Header("Cone of Vision")]
         [SerializeField] protected float _coneRadius;
         [SerializeField] protected float2 _coneAnglesDegrees;
@@ -14,81 +16,102 @@ namespace Perception
         [SerializeField] protected float _clipRadius;
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
-        [SerializeField] protected float3 _offset;
+        [SerializeField] protected float3 _receiverOffset;
 
         [Header("Additional Settings")]
         [SerializeField] protected float _memoryTime;
-        [SerializeField] protected GameObject[] _children;
         [SerializeField] protected float3[] _rayOffsets;
 
-        public class Baker : Baker<SightSenseReceiverAuthoring>
+        [SerializeField] protected bool _isSource;
+
+        [SerializeField] protected float3 _sourceOffset;
+
+        [SerializeField] protected GameObject[] _children;
+
+        public class Baker : Baker<SightSenseAuthoring>
         {
-            public override void Bake(SightSenseReceiverAuthoring authoring)
+            public override void Bake(SightSenseAuthoring authoring)
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
-                AddComponent(entity, new TagSightReceiver());
-                AddComponent(entity, new ComponentSightCone
-                {
-                    RadiusSquared = authoring._coneRadius * authoring._coneRadius,
-                    AnglesCos = math.cos(math.radians(authoring._coneAnglesDegrees / 2)),
-                });
 
-                if (authoring._clipRadius > 0)
+                if (authoring._isReceiver)
                 {
-                    AddComponent(entity, new ComponentSightClip
+                    AddComponent(entity, new TagSightReceiver());
+                    AddComponent(entity, new ComponentSightCone
                     {
-                        RadiusSquared = authoring._clipRadius * authoring._clipRadius
+                        RadiusSquared = authoring._coneRadius * authoring._coneRadius,
+                        AnglesCos = math.cos(math.radians(authoring._coneAnglesDegrees / 2)),
                     });
-                }
 
-                if (authoring._extendRadius > 0 || math.any(authoring._extendAnglesDegrees > float2.zero))
-                {
-                    var extendRadius = authoring._coneRadius + authoring._extendRadius;
-                    var extendAnglesDegrees = authoring._coneAnglesDegrees + authoring._extendAnglesDegrees;
-
-                    AddComponent(entity, new ComponentSightExtend
+                    if (authoring._clipRadius > 0)
                     {
-                        RadiusSquared = extendRadius * extendRadius,
-                        AnglesCos = math.cos(math.radians(extendAnglesDegrees / 2)),
-                    });
-                }
-
-                if (math.any(authoring._offset != float3.zero))
-                {
-                    AddComponent(entity, new ComponentSightOffset { Receiver = authoring._offset });
-                }
-
-                if (authoring._memoryTime > 0)
-                {
-                    AddComponent(entity, new ComponentSightMemory { Time = authoring._memoryTime });
-                }
-
-                if (authoring._children is { Length: > 0 })
-                {
-                    AddBuffer<BufferSightChild>(entity);
-
-                    foreach (var child in authoring._children)
-                    {
-                        if (child)
+                        AddComponent(entity, new ComponentSightClip
                         {
-                            AppendToBuffer(entity, new BufferSightChild { Value = GetEntity(child, TransformUsageFlags.Dynamic) });
+                            RadiusSquared = authoring._clipRadius * authoring._clipRadius
+                        });
+                    }
+
+                    if (authoring._extendRadius > 0 || math.any(authoring._extendAnglesDegrees > float2.zero))
+                    {
+                        var extendRadius = authoring._coneRadius + authoring._extendRadius;
+                        var extendAnglesDegrees = authoring._coneAnglesDegrees + authoring._extendAnglesDegrees;
+
+                        AddComponent(entity, new ComponentSightExtend
+                        {
+                            RadiusSquared = extendRadius * extendRadius,
+                            AnglesCos = math.cos(math.radians(extendAnglesDegrees / 2)),
+                        });
+                    }
+
+                    if (authoring._memoryTime > 0)
+                    {
+                        AddComponent(entity, new ComponentSightMemory { Time = authoring._memoryTime });
+                    }
+
+                    if (authoring._rayOffsets is { Length: > 0 })
+                    {
+                        AddComponent(entity, new TagSightRayMultiple());
+                        AddBuffer<BufferSightRayOffset>(entity);
+
+                        foreach (var rayOffset in authoring._rayOffsets)
+                        {
+                            AppendToBuffer(entity, new BufferSightRayOffset { Value = rayOffset });
                         }
                     }
-                }
-
-                if (authoring._rayOffsets is { Length: > 0 })
-                {
-                    AddComponent(entity, new TagSightRayMultiple());
-                    AddBuffer<BufferSightRayOffset>(entity);
-
-                    foreach (var rayOffset in authoring._rayOffsets)
+                    else
                     {
-                        AppendToBuffer(entity, new BufferSightRayOffset { Value = rayOffset });
+                        AddComponent(entity, new TagSightRaySingle());
                     }
                 }
-                else
+
+                if (authoring._isSource)
                 {
-                    AddComponent(entity, new TagSightRaySingle());
+                    AddComponent(entity, new TagSightSource());
+                }
+
+                if (authoring._isReceiver || authoring._isSource)
+                {
+                    if (math.any(authoring._receiverOffset != float3.zero) || math.any(authoring._sourceOffset != float3.zero))
+                    {
+                        AddComponent(entity, new ComponentSightOffset
+                        {
+                            Receiver = authoring._isReceiver ? authoring._receiverOffset : float3.zero,
+                            Source = authoring._isSource ? authoring._sourceOffset : float3.zero,
+                        });
+                    }
+
+                    if (authoring._children is { Length: > 0 })
+                    {
+                        AddBuffer<BufferSightChild>(entity);
+
+                        foreach (var child in authoring._children)
+                        {
+                            if (child)
+                            {
+                                AppendToBuffer(entity, new BufferSightChild { Value = GetEntity(child, TransformUsageFlags.Dynamic) });
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -112,7 +135,7 @@ namespace Perception
 
         protected virtual void OnDrawGizmosSelected()
         {
-            if (Application.isPlaying)
+            if (Application.isPlaying || !_isReceiver)
             {
                 return;
             }
@@ -120,7 +143,7 @@ namespace Perception
             var transform = this.transform;
             var coneHalfAngles = math.radians(_coneAnglesDegrees) / 2;
             var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
-            var position = transform.TransformPoint(_offset);
+            var position = transform.TransformPoint(_receiverOffset);
 
             DrawCone(position, transform.rotation, 0, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
             DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);

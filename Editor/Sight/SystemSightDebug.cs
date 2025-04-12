@@ -46,9 +46,9 @@ namespace Perception.Editor
                 var extendAngles = math.acos(extendRO.ValueRO.AnglesCos);
                 var clip = math.sqrt(clipRO.ValueRO.RadiusSquared);
 
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, clip, extendRadius, extendAngles, Color.yellow);
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, 0, clip, extendAngles, Color.gray);
+                SightSenseAuthoring.DrawCone(position, rotation, clip, extendRadius, extendAngles, Color.yellow);
+                SightSenseAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position, rotation, 0, clip, extendAngles, Color.gray);
             }
 
             foreach (var (transformRO, positionRO, coneRO, clipRO) in SystemAPI
@@ -63,8 +63,8 @@ namespace Perception.Editor
                 var angles = math.acos(coneRO.ValueRO.AnglesCos);
                 var clip = math.sqrt(clipRO.ValueRO.RadiusSquared);
 
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, 0, clip, angles, Color.gray);
+                SightSenseAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position, rotation, 0, clip, angles, Color.gray);
             }
 
             foreach (var (transformRO, positionRO, coneRO, extendRO) in SystemAPI
@@ -80,8 +80,8 @@ namespace Perception.Editor
                 var angles = math.acos(coneRO.ValueRO.AnglesCos);
                 var extendAngles = math.acos(extendRO.ValueRO.AnglesCos);
 
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, 0, extendRadius, extendAngles, Color.yellow);
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position, rotation, 0, extendRadius, extendAngles, Color.yellow);
+                SightSenseAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
             }
 
             foreach (var (transformRO, positionRO, coneRO) in SystemAPI
@@ -94,7 +94,7 @@ namespace Perception.Editor
                 var radius = math.sqrt(coneRO.ValueRO.RadiusSquared);
                 var angles = math.acos(coneRO.ValueRO.AnglesCos);
 
-                SightSenseReceiverAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
             }
         }
     }
