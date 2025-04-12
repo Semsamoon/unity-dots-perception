@@ -8,24 +8,27 @@ namespace Perception
     {
         [SerializeField] protected bool _isReceiver;
 
-        [Header("Cone of Vision")]
+        [Header("Receiver Settings")]
         [SerializeField] protected float _coneRadius;
         [SerializeField] protected float2 _coneAnglesDegrees;
 
-        [Header("Cone Modifications")]
+        [Header("Receiver Modifications")]
         [SerializeField] protected float _clipRadius;
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
         [SerializeField] protected float3 _receiverOffset;
 
-        [Header("Additional Settings")]
+        [Header("Receiver Additional Settings")]
         [SerializeField] protected float _memoryTime;
         [SerializeField] protected float3[] _rayOffsets;
 
+        [Space]
         [SerializeField] protected bool _isSource;
 
+        [Header("Source Additional Settings")]
         [SerializeField] protected float3 _sourceOffset;
 
+        [Header("Common Additional Settings")]
         [SerializeField] protected GameObject[] _children;
 
         public class Baker : Baker<SightSenseAuthoring>
