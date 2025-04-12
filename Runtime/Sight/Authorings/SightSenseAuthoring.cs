@@ -138,19 +138,29 @@ namespace Perception
 
         protected virtual void OnDrawGizmosSelected()
         {
-            if (Application.isPlaying || !_isReceiver)
+            if (Application.isPlaying)
             {
                 return;
             }
 
-            var transform = this.transform;
-            var coneHalfAngles = math.radians(_coneAnglesDegrees) / 2;
-            var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
-            var position = transform.TransformPoint(_receiverOffset);
+            if (_isReceiver)
+            {
+                var transform = this.transform;
+                var coneHalfAngles = math.radians(_coneAnglesDegrees) / 2;
+                var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
+                var position = transform.TransformPoint(_receiverOffset);
 
-            DrawCone(position, transform.rotation, 0, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
-            DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
-            DrawCone(position, transform.rotation, 0, _clipRadius, extendHalfAngles, Color.gray);
+                DrawCone(position, transform.rotation, 0, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
+                DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
+                DrawCone(position, transform.rotation, 0, _clipRadius, extendHalfAngles, Color.gray);
+            }
+
+            if (_isSource)
+            {
+                var transform = this.transform;
+                var position = transform.TransformPoint(_sourceOffset);
+                DebugAdvanced.DrawOctahedron(position, new float3(0.25f, 0.5f, 0.25f), Color.blue);
+            }
         }
 
         public static void DrawCone(float3 position, quaternion rotation, float clip, float radius, float2 halfAnglesRadians, Color color, int sparsity = 1000)
