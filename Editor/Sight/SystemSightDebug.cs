@@ -33,6 +33,74 @@ namespace Perception.Editor
 
             commands.Playback(state.EntityManager);
 
+            var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
+            var buffersMemory = SystemAPI.GetBufferLookup<BufferSightMemory>();
+            var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
+
+            foreach (var (positionRO, receiver) in SystemAPI
+                         .Query<RefRO<ComponentSightPosition>>()
+                         .WithAll<TagSightReceiver, TagSightDebug>()
+                         .WithAll<BufferSightCone, BufferSightPerceive, BufferSightMemory>()
+                         .WithEntityAccess())
+            {
+                var position = positionRO.ValueRO.Receiver;
+                var bufferPerceive = buffersPerceive[receiver];
+                var bufferMemory = buffersMemory[receiver];
+                var bufferCone = buffersCone[receiver];
+
+                foreach (var cone in bufferCone)
+                {
+                    if (!IsPerceived(cone.Source, bufferPerceive) && !IsMemorized(cone.Source, bufferMemory))
+                    {
+                        Debug.DrawLine(position, cone.Position, Color.red);
+                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
+                    }
+                }
+
+                foreach (var perceive in bufferPerceive)
+                {
+                    Debug.DrawLine(position, perceive.Position, Color.green);
+                    DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
+                }
+
+                foreach (var memory in bufferMemory)
+                {
+                    var sourcePosition = SystemAPI.GetComponentRO<ComponentSightPosition>(memory.Source).ValueRO.Source;
+
+                    Debug.DrawLine(position, memory.Position, Color.yellow);
+                    Debug.DrawLine(sourcePosition, memory.Position, Color.yellow);
+                    DebugAdvanced.DrawOctahedron(memory.Position, new float3(0.125f, 0.25f, 0.125f), Color.yellow);
+                    DebugAdvanced.DrawOctahedron(sourcePosition, new float3(0.25f, 0.5f, 0.25f), Color.yellow);
+                }
+            }
+
+            foreach (var (positionRO, receiver) in SystemAPI
+                         .Query<RefRO<ComponentSightPosition>>()
+                         .WithAll<TagSightReceiver, TagSightDebug>()
+                         .WithAll<BufferSightCone, BufferSightPerceive>()
+                         .WithNone<BufferSightMemory>()
+                         .WithEntityAccess())
+            {
+                var position = positionRO.ValueRO.Receiver;
+                var bufferPerceive = buffersPerceive[receiver];
+                var bufferCone = buffersCone[receiver];
+
+                foreach (var cone in bufferCone)
+                {
+                    if (!IsPerceived(cone.Source, bufferPerceive))
+                    {
+                        Debug.DrawLine(position, cone.Position, Color.red);
+                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
+                    }
+                }
+
+                foreach (var perceive in bufferPerceive)
+                {
+                    Debug.DrawLine(position, perceive.Position, Color.green);
+                    DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
+                }
+            }
+
             foreach (var (transformRO, positionRO, coneRO, extendRO, clipRO) in SystemAPI
                          .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
                              RefRO<ComponentSightExtend>, RefRO<ComponentSightClip>>()
@@ -96,6 +164,32 @@ namespace Perception.Editor
 
                 SightSenseAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
             }
+        }
+
+        private bool IsPerceived(Entity source, DynamicBuffer<BufferSightPerceive> bufferPerceive)
+        {
+            foreach (var perceive in bufferPerceive)
+            {
+                if (perceive.Source == source)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsMemorized(Entity source, DynamicBuffer<BufferSightMemory> bufferMemory)
+        {
+            foreach (var memory in bufferMemory)
+            {
+                if (memory.Source == source)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
