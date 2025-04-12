@@ -650,7 +650,7 @@ namespace Perception
 
         public static bool CheckHit(RaycastHit hit, Entity entity, DynamicBuffer<BufferSightChild> bufferChild, float clip)
         {
-            if (hit.Entity == entity || hit.Fraction >= clip)
+            if (hit.Entity == entity || hit.Fraction < clip)
             {
                 return false;
             }
