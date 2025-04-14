@@ -1,54 +1,86 @@
-﻿using Unity.Collections;
+﻿using Unity.Burst;
+using Unity.Burst.Intrinsics;
+using Unity.Collections;
 using Unity.Entities;
 
 namespace Perception
 {
+    [BurstCompile]
     public partial struct SystemSightMemory : ISystem
     {
+        private EntityQuery _queryWithoutBuffer;
+        private EntityQuery _query;
+
+        private BufferTypeHandle<BufferSightMemory> _handleBufferMemory;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _queryWithoutBuffer = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, ComponentSightMemory>()
+                .WithNone<BufferSightMemory>()
+                .Build();
+            _query = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, BufferSightMemory>()
+                .Build();
+
+            _handleBufferMemory = SystemAPI.GetBufferTypeHandle<BufferSightMemory>();
         }
 
+        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var receiver in SystemAPI
-                         .QueryBuilder()
-                         .WithAll<TagSightReceiver, ComponentSightMemory>()
-                         .WithNone<BufferSightMemory>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutBuffer.ToEntityArray(Allocator.Temp))
             {
                 commands.AddBuffer<BufferSightMemory>(receiver);
             }
 
-            var buffersMemory = SystemAPI.GetBufferLookup<BufferSightMemory>();
+            commands.Playback(state.EntityManager);
 
-            foreach (var receiver in SystemAPI
-                         .QueryBuilder()
-                         .WithAll<TagSightReceiver, BufferSightMemory>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
+            _handleBufferMemory.Update(ref state);
+
+            var job = new JobUpdateMemory
             {
-                var bufferMemory = buffersMemory[receiver];
+                HandleBufferMemory = _handleBufferMemory,
+                DeltaTime = SystemAPI.Time.DeltaTime,
+            }.ScheduleParallel(_query, state.Dependency);
 
-                for (var i = bufferMemory.Length - 1; i >= 0; i--)
+            state.Dependency = job;
+        }
+
+        [BurstCompile]
+        private struct JobUpdateMemory : IJobChunk
+        {
+            public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
+            [ReadOnly] public float DeltaTime;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
+
+                for (var i = 0; i < chunk.Count; i++)
                 {
-                    bufferMemory.ElementAt(i).Time -= SystemAPI.Time.DeltaTime;
+                    var bufferMemory = buffersMemory[i];
 
-                    if (bufferMemory[i].Time <= 0)
+                    for (var j = bufferMemory.Length - 1; j >= 0; j--)
                     {
-                        bufferMemory.RemoveAt(i);
+                        bufferMemory.ElementAt(j).Time -= DeltaTime;
+
+                        if (bufferMemory[j].Time <= 0)
+                        {
+                            bufferMemory.RemoveAtSwapBack(j);
+                        }
                     }
                 }
             }
-
-            commands.Playback(state.EntityManager);
         }
     }
 }
