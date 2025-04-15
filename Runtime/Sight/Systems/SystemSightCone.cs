@@ -1,235 +1,222 @@
-﻿using Unity.Collections;
+﻿using Unity.Burst;
+using Unity.Burst.Intrinsics;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
 namespace Perception
 {
-    [UpdateAfter(typeof(SystemSightPosition))]
+    [BurstCompile, UpdateAfter(typeof(SystemSightPosition))]
     public partial struct SystemSightCone : ISystem
     {
+        private EntityQuery _queryWithoutCone;
+        private EntityQuery _queryWithoutPerceive;
+        private EntityQuery _querySources;
+        private EntityQuery _queryWithExtendWithClip;
+        private EntityQuery _queryWithExtend;
+        private EntityQuery _queryWithClip;
+        private EntityQuery _query;
+
+        private BufferTypeHandle<BufferSightPerceive> _handleBufferPerceive;
+        private BufferTypeHandle<BufferSightCone> _handleBufferCone;
+
+        private ComponentTypeHandle<ComponentSightPosition> _handlePosition;
+        private ComponentTypeHandle<ComponentSightExtend> _handleExtend;
+        private ComponentTypeHandle<ComponentSightCone> _handleCone;
+        private ComponentTypeHandle<ComponentSightClip> _handleClip;
+        private ComponentTypeHandle<LocalToWorld> _handleTransform;
+
+        private ComponentLookup<ComponentSightPosition> _lookupPosition;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _queryWithoutPerceive = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver>()
+                .WithNone<BufferSightPerceive>()
+                .Build();
+            _queryWithoutCone = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver>()
+                .WithNone<BufferSightCone>()
+                .Build();
+            _querySources = SystemAPI.QueryBuilder()
+                .WithAll<TagSightSource, ComponentSightPosition>()
+                .Build();
+            _queryWithExtendWithClip = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
+                .WithAll<LocalToWorld, ComponentSightPosition, ComponentSightCone>()
+                .WithAll<ComponentSightExtend, ComponentSightClip>()
+                .Build();
+            _queryWithExtend = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
+                .WithAll<LocalToWorld, ComponentSightPosition, ComponentSightCone>()
+                .WithAll<ComponentSightExtend>()
+                .WithNone<ComponentSightClip>()
+                .Build();
+            _queryWithClip = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
+                .WithAll<LocalToWorld, ComponentSightPosition, ComponentSightCone>()
+                .WithAll<ComponentSightClip>()
+                .WithNone<ComponentSightExtend>()
+                .Build();
+            _query = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
+                .WithAll<LocalToWorld, ComponentSightPosition, ComponentSightCone>()
+                .WithNone<ComponentSightExtend, ComponentSightClip>()
+                .Build();
+
+            _handleBufferPerceive = SystemAPI.GetBufferTypeHandle<BufferSightPerceive>(isReadOnly: true);
+            _handleBufferCone = SystemAPI.GetBufferTypeHandle<BufferSightCone>();
+
+            _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentSightPosition>(isReadOnly: true);
+            _handleExtend = SystemAPI.GetComponentTypeHandle<ComponentSightExtend>(isReadOnly: true);
+            _handleCone = SystemAPI.GetComponentTypeHandle<ComponentSightCone>(isReadOnly: true);
+            _handleClip = SystemAPI.GetComponentTypeHandle<ComponentSightClip>(isReadOnly: true);
+            _handleTransform = SystemAPI.GetComponentTypeHandle<LocalToWorld>(isReadOnly: true);
+
+            _lookupPosition = SystemAPI.GetComponentLookup<ComponentSightPosition>(isReadOnly: true);
         }
 
+        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var receiver in SystemAPI
-                         .QueryBuilder()
-                         .WithAll<TagSightReceiver>()
-                         .WithNone<BufferSightCone>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutCone.ToEntityArray(Allocator.Temp))
             {
                 commands.AddBuffer<BufferSightCone>(receiver);
             }
 
-            foreach (var receiver in SystemAPI
-                         .QueryBuilder()
-                         .WithAll<TagSightReceiver>()
-                         .WithNone<BufferSightPerceive>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutPerceive.ToEntityArray(Allocator.Temp))
             {
                 commands.AddBuffer<BufferSightPerceive>(receiver);
             }
 
             commands.Playback(state.EntityManager);
-            commands = new EntityCommandBuffer(Allocator.Temp);
 
-            var buffers = new Buffers(
-                SystemAPI.GetBufferLookup<BufferSightPerceive>(),
-                SystemAPI.GetBufferLookup<BufferSightCone>());
+            _handleBufferPerceive.Update(ref state);
+            _handleBufferCone.Update(ref state);
 
-            foreach (var (transformRO, positionRO, coneRO, clipRO, extendRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
-                             RefRO<ComponentSightClip>, RefRO<ComponentSightExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
-                         .WithEntityAccess())
+            _handlePosition.Update(ref state);
+            _handleExtend.Update(ref state);
+            _handleCone.Update(ref state);
+            _handleClip.Update(ref state);
+            _handleTransform.Update(ref state);
+
+            _lookupPosition.Update(ref state);
+
+            var sources = _querySources.ToEntityArray(Allocator.TempJob);
+            var sourcesReadOnly = sources.AsReadOnly();
+
+            var jobWithExtendWithClip = new JobUpdateConeWithExtendWithClip
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
-                ProcessReceiver(ref state, in receiverData, extendRO, clipRO, in buffers, ref commands);
-            }
+                HandleBufferPerceive = _handleBufferPerceive,
+                HandleBufferCone = _handleBufferCone,
 
-            foreach (var (transformRO, positionRO, coneRO, extendRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
-                             RefRO<ComponentSightExtend>>()
-                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
-                         .WithNone<ComponentSightClip>()
-                         .WithEntityAccess())
+                HandlePosition = _handlePosition,
+                HandleExtend = _handleExtend,
+                HandleCone = _handleCone,
+                HandleClip = _handleClip,
+                HandleTransform = _handleTransform,
+
+                LookupPosition = _lookupPosition,
+                Sources = sourcesReadOnly,
+            }.ScheduleParallel(_queryWithExtendWithClip, state.Dependency);
+
+            var jobWithExtend = new JobUpdateConeWithExtend
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
-                ProcessReceiver(ref state, in receiverData, extendRO, in buffers, ref commands);
-            }
+                HandleBufferPerceive = _handleBufferPerceive,
+                HandleBufferCone = _handleBufferCone,
 
-            foreach (var (transformRO, positionRO, coneRO, clipRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
-                             RefRO<ComponentSightClip>>()
-                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
-                         .WithNone<ComponentSightExtend>()
-                         .WithEntityAccess())
+                HandlePosition = _handlePosition,
+                HandleExtend = _handleExtend,
+                HandleCone = _handleCone,
+                HandleTransform = _handleTransform,
+
+                LookupPosition = _lookupPosition,
+                Sources = sourcesReadOnly,
+            }.ScheduleParallel(_queryWithExtend, jobWithExtendWithClip);
+
+            var jobWithClip = new JobUpdateConeWithClip
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
-                ProcessReceiver(ref state, in receiverData, clipRO, in buffers, ref commands);
-            }
+                HandleBufferCone = _handleBufferCone,
 
-            foreach (var (transformRO, positionRO, coneRO, receiver) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>>()
-                         .WithAll<TagSightReceiver, BufferSightCone, BufferSightPerceive>()
-                         .WithNone<ComponentSightExtend, ComponentSightClip>()
-                         .WithEntityAccess())
+                HandlePosition = _handlePosition,
+                HandleCone = _handleCone,
+                HandleClip = _handleClip,
+                HandleTransform = _handleTransform,
+
+                LookupPosition = _lookupPosition,
+                Sources = sourcesReadOnly,
+            }.ScheduleParallel(_queryWithClip, jobWithExtend);
+
+            var job = new JobUpdateCone
             {
-                var receiverData = new Receiver(receiver, positionRO.ValueRO.Receiver, transformRO, coneRO);
-                ProcessReceiver(ref state, in receiverData, in buffers, ref commands);
-            }
+                HandleBufferCone = _handleBufferCone,
 
-            commands.Playback(state.EntityManager);
+                HandlePosition = _handlePosition,
+                HandleCone = _handleCone,
+                HandleTransform = _handleTransform,
+
+                LookupPosition = _lookupPosition,
+                Sources = sourcesReadOnly,
+            }.ScheduleParallel(_query, jobWithClip);
+
+            var dispose = sources.Dispose(job);
+
+            state.Dependency = dispose;
         }
 
-        private void ProcessReceiver(ref SystemState state,
-            in Receiver receiver, RefRO<ComponentSightExtend> extendRO, RefRO<ComponentSightClip> clipRO,
-            in Buffers buffers, ref EntityCommandBuffer commands)
+        [BurstCompile]
+        private static bool IsInsideCone(in float3 origin, in float3 target,
+            in LocalToWorld transform, in float2 anglesCos, float radiusSquared, float clipSquared)
         {
-            buffers.Cone[receiver.Entity].Clear();
-
-            foreach (var (sourcePositionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
-                var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
-                    ? new ConeCast(in receiver, sourcePositionRO, extendRO)
-                    : new ConeCast(in receiver, sourcePositionRO);
-                ProcessSource(ref state, in receiver, in sourceData, clipRO, in coneCast, ref commands);
-            }
-        }
-
-        private void ProcessReceiver(ref SystemState state,
-            in Receiver receiver, RefRO<ComponentSightExtend> extendRO,
-            in Buffers buffers, ref EntityCommandBuffer commands)
-        {
-            buffers.Cone[receiver.Entity].Clear();
-
-            foreach (var (sourcePositionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
-                var coneCast = IsPerceived(source, buffers.Perceive[receiver.Entity])
-                    ? new ConeCast(in receiver, sourcePositionRO, extendRO)
-                    : new ConeCast(in receiver, sourcePositionRO);
-                ProcessSource(ref state, in receiver, in sourceData, in coneCast, ref commands);
-            }
-        }
-
-        private void ProcessReceiver(ref SystemState state,
-            in Receiver receiver, RefRO<ComponentSightClip> clipRO,
-            in Buffers buffers, ref EntityCommandBuffer commands)
-        {
-            buffers.Cone[receiver.Entity].Clear();
-
-            foreach (var (sourcePositionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
-                var coneCast = new ConeCast(in receiver, sourcePositionRO);
-                ProcessSource(ref state, in receiver, in sourceData, clipRO, in coneCast, ref commands);
-            }
-        }
-
-        private void ProcessReceiver(ref SystemState state,
-            in Receiver receiver, in Buffers buffers, ref EntityCommandBuffer commands)
-        {
-            buffers.Cone[receiver.Entity].Clear();
-
-            foreach (var (sourcePositionRO, source) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightSource>()
-                         .WithEntityAccess())
-            {
-                var sourceData = new Source(source, sourcePositionRO.ValueRO.Source);
-                var coneCast = new ConeCast(in receiver, sourcePositionRO);
-                ProcessSource(ref state, in receiver, in sourceData, in coneCast, ref commands);
-            }
-        }
-
-        private void ProcessSource(ref SystemState state,
-            in Receiver receiver, in Source source, RefRO<ComponentSightClip> clipRO,
-            in ConeCast coneCast, ref EntityCommandBuffer commands)
-        {
-            if (IsInsideCone(in coneCast, clipRO.ValueRO.RadiusSquared))
-            {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightCone
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
-            }
-        }
-
-        private void ProcessSource(ref SystemState state,
-            in Receiver receiver, in Source source,
-            in ConeCast coneCast, ref EntityCommandBuffer commands)
-        {
-            if (IsInsideCone(in coneCast))
-            {
-                commands.AppendToBuffer(receiver.Entity, new BufferSightCone
-                {
-                    Source = source.Entity,
-                    Position = source.Position,
-                });
-            }
-        }
-
-        private bool IsInsideCone(in ConeCast coneCast, float clipRadiusSquared)
-        {
-            var difference = coneCast.Target - coneCast.Origin;
+            var difference = target - origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > coneCast.RadiusSquared || distanceSquared < clipRadiusSquared)
+            if (distanceSquared > radiusSquared || distanceSquared < clipSquared)
             {
                 return false;
             }
 
-            var directionLocal = coneCast.Transform.ValueRO.Value.InverseTransformDirection(difference);
+            var directionLocal = transform.Value.InverseTransformDirection(difference);
             var xSquared = directionLocal.x * directionLocal.x;
             var ySquared = directionLocal.y * directionLocal.y;
             var zSquared = directionLocal.z * directionLocal.z;
 
-            return directionLocal.z / math.sqrt(xSquared + zSquared) >= coneCast.AnglesCos.x
-                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= coneCast.AnglesCos.y;
+            return directionLocal.z / math.sqrt(xSquared + zSquared) >= anglesCos.x
+                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= anglesCos.y;
         }
 
-        private bool IsInsideCone(in ConeCast coneCast)
+        [BurstCompile]
+        private static bool IsInsideCone(in float3 origin, in float3 target,
+            in LocalToWorld transform, in float2 anglesCos, float radiusSquared)
         {
-            var difference = coneCast.Target - coneCast.Origin;
+            var difference = target - origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > coneCast.RadiusSquared)
+            if (distanceSquared > radiusSquared)
             {
                 return false;
             }
 
-            var directionLocal = coneCast.Transform.ValueRO.Value.InverseTransformDirection(difference);
+            var directionLocal = transform.Value.InverseTransformDirection(difference);
             var xSquared = directionLocal.x * directionLocal.x;
             var ySquared = directionLocal.y * directionLocal.y;
             var zSquared = directionLocal.z * directionLocal.z;
 
-            return directionLocal.z / math.sqrt(xSquared + zSquared) >= coneCast.AnglesCos.x
-                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= coneCast.AnglesCos.y;
+            return directionLocal.z / math.sqrt(xSquared + zSquared) >= anglesCos.x
+                   && math.sqrt((xSquared + zSquared) / (xSquared + ySquared + zSquared)) >= anglesCos.y;
         }
 
-        private bool IsPerceived(Entity entity, DynamicBuffer<BufferSightPerceive> bufferPerceive)
+        [BurstCompile]
+        private static bool IsPerceived(in Entity entity, in DynamicBuffer<BufferSightPerceive> bufferPerceive)
         {
             foreach (var perceive in bufferPerceive)
             {
@@ -242,70 +229,191 @@ namespace Perception
             return false;
         }
 
-        private readonly struct Buffers
+        [BurstCompile]
+        private struct JobUpdateConeWithExtendWithClip : IJobChunk
         {
-            public readonly BufferLookup<BufferSightPerceive> Perceive;
-            public readonly BufferLookup<BufferSightCone> Cone;
+            [ReadOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [WriteOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
-            public Buffers(BufferLookup<BufferSightPerceive> perceive, BufferLookup<BufferSightCone> cone)
+            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightExtend> HandleExtend;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightCone> HandleCone;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> HandleTransform;
+
+            [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
+            [ReadOnly] public NativeArray<Entity>.ReadOnly Sources;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                Perceive = perceive;
-                Cone = cone;
+                var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+
+                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var extends = chunk.GetNativeArray(ref HandleExtend);
+                var cones = chunk.GetNativeArray(ref HandleCone);
+                var clips = chunk.GetNativeArray(ref HandleClip);
+                var transforms = chunk.GetNativeArray(ref HandleTransform);
+
+                for (var i = 0; i < chunk.Count; i++)
+                {
+                    var bufferCone = buffersCone[i];
+                    var extend = extends[i];
+                    var cone = cones[i];
+
+                    bufferCone.Clear();
+
+                    foreach (var source in Sources)
+                    {
+                        var sourcePosition = LookupPosition[source].Source;
+                        var (anglesCos, radiusSquared) = IsPerceived(in source, buffersPerceive[i])
+                            ? (extend.AnglesCos, extend.RadiusSquared)
+                            : (cone.AnglesCos, cone.RadiusSquared);
+
+                        if (IsInsideCone(positions[i].Receiver, in sourcePosition,
+                                transforms[i], in anglesCos, radiusSquared, clips[i].RadiusSquared))
+                        {
+                            bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
+                        }
+                    }
+                }
             }
         }
 
-        private readonly struct Receiver
+        [BurstCompile]
+        private struct JobUpdateConeWithExtend : IJobChunk
         {
-            public readonly float3 Position;
-            public readonly Entity Entity;
-            public readonly RefRO<LocalToWorld> Transform;
-            public readonly RefRO<ComponentSightCone> Cone;
+            [ReadOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [WriteOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
-            public Receiver(Entity entity, float3 position, RefRO<LocalToWorld> transform, RefRO<ComponentSightCone> cone)
+            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightExtend> HandleExtend;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightCone> HandleCone;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> HandleTransform;
+
+            [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
+            [ReadOnly] public NativeArray<Entity>.ReadOnly Sources;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                Entity = entity;
-                Position = position;
-                Transform = transform;
-                Cone = cone;
+                var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+
+                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var extends = chunk.GetNativeArray(ref HandleExtend);
+                var cones = chunk.GetNativeArray(ref HandleCone);
+                var transforms = chunk.GetNativeArray(ref HandleTransform);
+
+                for (var i = 0; i < chunk.Count; i++)
+                {
+                    var bufferCone = buffersCone[i];
+                    var extend = extends[i];
+                    var cone = cones[i];
+
+                    bufferCone.Clear();
+
+                    foreach (var source in Sources)
+                    {
+                        var sourcePosition = LookupPosition[source].Source;
+                        var (anglesCos, radiusSquared) = IsPerceived(in source, buffersPerceive[i])
+                            ? (extend.AnglesCos, extend.RadiusSquared)
+                            : (cone.AnglesCos, cone.RadiusSquared);
+
+                        if (IsInsideCone(positions[i].Receiver, in sourcePosition,
+                                transforms[i], in anglesCos, radiusSquared))
+                        {
+                            bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
+                        }
+                    }
+                }
             }
         }
 
-        private readonly struct Source
+        [BurstCompile]
+        private struct JobUpdateConeWithClip : IJobChunk
         {
-            public readonly float3 Position;
-            public readonly Entity Entity;
+            [WriteOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
-            public Source(Entity entity, float3 position)
+            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightCone> HandleCone;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> HandleTransform;
+
+            [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
+            [ReadOnly] public NativeArray<Entity>.ReadOnly Sources;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                Entity = entity;
-                Position = position;
+                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+
+                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var cones = chunk.GetNativeArray(ref HandleCone);
+                var clips = chunk.GetNativeArray(ref HandleClip);
+                var transforms = chunk.GetNativeArray(ref HandleTransform);
+
+                for (var i = 0; i < chunk.Count; i++)
+                {
+                    var bufferCone = buffersCone[i];
+                    var cone = cones[i];
+
+                    bufferCone.Clear();
+
+                    foreach (var source in Sources)
+                    {
+                        var sourcePosition = LookupPosition[source].Source;
+
+                        if (IsInsideCone(positions[i].Receiver, in sourcePosition,
+                                transforms[i], in cone.AnglesCos, cone.RadiusSquared, clips[i].RadiusSquared))
+                        {
+                            bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
+                        }
+                    }
+                }
             }
         }
 
-        private readonly struct ConeCast
+        [BurstCompile]
+        private struct JobUpdateCone : IJobChunk
         {
-            public readonly float3 Origin;
-            public readonly float3 Target;
-            public readonly float2 AnglesCos;
-            public readonly float RadiusSquared;
-            public readonly RefRO<LocalToWorld> Transform;
+            [WriteOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
-            public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO)
-            {
-                Origin = receiver.Position;
-                Target = sourcePositionRO.ValueRO.Receiver;
-                AnglesCos = receiver.Cone.ValueRO.AnglesCos;
-                RadiusSquared = receiver.Cone.ValueRO.RadiusSquared;
-                Transform = receiver.Transform;
-            }
+            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightCone> HandleCone;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> HandleTransform;
 
-            public ConeCast(in Receiver receiver, RefRO<ComponentSightPosition> sourcePositionRO, RefRO<ComponentSightExtend> extendRO)
+            [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
+            [ReadOnly] public NativeArray<Entity>.ReadOnly Sources;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                Origin = receiver.Position;
-                Target = sourcePositionRO.ValueRO.Receiver;
-                AnglesCos = extendRO.ValueRO.AnglesCos;
-                RadiusSquared = extendRO.ValueRO.RadiusSquared;
-                Transform = receiver.Transform;
+                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+
+                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var cones = chunk.GetNativeArray(ref HandleCone);
+                var transforms = chunk.GetNativeArray(ref HandleTransform);
+
+                for (var i = 0; i < chunk.Count; i++)
+                {
+                    var bufferCone = buffersCone[i];
+                    var cone = cones[i];
+
+                    bufferCone.Clear();
+
+                    foreach (var source in Sources)
+                    {
+                        var sourcePosition = LookupPosition[source].Source;
+
+                        if (IsInsideCone(positions[i].Receiver, in sourcePosition,
+                                transforms[i], in cone.AnglesCos, cone.RadiusSquared))
+                        {
+                            bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
+                        }
+                    }
+                }
             }
         }
     }
