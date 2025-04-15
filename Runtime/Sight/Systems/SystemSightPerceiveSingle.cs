@@ -912,14 +912,14 @@ namespace Perception
 
         public bool AddHit(RaycastHit hit)
         {
-            if (hit.Entity != _entity && hit.Fraction >= _clip)
+            if (hit.Entity == _entity || hit.Fraction < _clip)
             {
-                MaxFraction = hit.Fraction;
-                Hit = hit;
-                return true;
+                return false;
             }
 
-            return false;
+            MaxFraction = hit.Fraction;
+            Hit = hit;
+            return true;
         }
     }
 
@@ -941,14 +941,14 @@ namespace Perception
 
         public bool AddHit(RaycastHit hit)
         {
-            if (hit.Entity != _entity)
+            if (hit.Entity == _entity)
             {
-                MaxFraction = hit.Fraction;
-                Hit = hit;
-                return true;
+                return false;
             }
 
-            return false;
+            MaxFraction = hit.Fraction;
+            Hit = hit;
+            return true;
         }
     }
 }
