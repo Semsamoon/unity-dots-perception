@@ -834,24 +834,12 @@ namespace Perception
 
         public bool AddHit(RaycastHit hit)
         {
-            if (CheckHit(hit, _entity, _bufferChild, _clip))
-            {
-                MaxFraction = hit.Fraction;
-                Hit = hit;
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool CheckHit(RaycastHit hit, Entity entity, DynamicBuffer<BufferSightChild> bufferChild, float clip)
-        {
-            if (hit.Entity == entity || hit.Fraction < clip)
+            if (hit.Entity == _entity || hit.Fraction < _clip)
             {
                 return false;
             }
 
-            foreach (var child in bufferChild)
+            foreach (var child in _bufferChild)
             {
                 if (hit.Entity == child.Value)
                 {
@@ -859,6 +847,8 @@ namespace Perception
                 }
             }
 
+            MaxFraction = hit.Fraction;
+            Hit = hit;
             return true;
         }
     }
@@ -883,24 +873,12 @@ namespace Perception
 
         public bool AddHit(RaycastHit hit)
         {
-            if (CheckHit(hit, _entity, _bufferChild))
-            {
-                MaxFraction = hit.Fraction;
-                Hit = hit;
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool CheckHit(RaycastHit hit, Entity entity, DynamicBuffer<BufferSightChild> bufferChild)
-        {
-            if (hit.Entity == entity)
+            if (hit.Entity == _entity)
             {
                 return false;
             }
 
-            foreach (var child in bufferChild)
+            foreach (var child in _bufferChild)
             {
                 if (hit.Entity == child.Value)
                 {
@@ -908,6 +886,8 @@ namespace Perception
                 }
             }
 
+            MaxFraction = hit.Fraction;
+            Hit = hit;
             return true;
         }
     }
