@@ -33,6 +33,8 @@ namespace Perception.Editor
 
             commands.Playback(state.EntityManager);
 
+            state.Dependency.Complete();
+
             var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
             var buffersMemory = SystemAPI.GetBufferLookup<BufferSightMemory>();
             var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
