@@ -26,6 +26,7 @@ namespace Perception
 
         private ComponentTypeHandle<ComponentSightPosition> _handlePosition;
         private ComponentTypeHandle<ComponentSightMemory> _handleMemory;
+        private ComponentTypeHandle<ComponentSightFilter> _handleFilter;
         private ComponentTypeHandle<ComponentSightClip> _handleClip;
 
         private BufferLookup<BufferSightChild> _lookupBufferChild;
@@ -38,49 +39,49 @@ namespace Perception
 
             _queryWithMemoryWithChildWithClip = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightMemory, ComponentSightMemory>()
                 .WithAll<BufferSightChild, ComponentSightClip>()
                 .Build();
             _queryWithMemoryWithChild = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightMemory, BufferSightChild, ComponentSightMemory>()
                 .WithNone<ComponentSightClip>()
                 .Build();
             _queryWithMemoryWithClip = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightMemory, ComponentSightMemory, ComponentSightClip>()
                 .WithNone<BufferSightChild>()
                 .Build();
             _queryWithChildWithClip = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightChild, ComponentSightClip>()
                 .WithNone<BufferSightMemory, ComponentSightMemory>()
                 .Build();
             _queryWithMemory = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightMemory, ComponentSightMemory>()
                 .WithNone<BufferSightChild, ComponentSightClip>()
                 .Build();
             _queryWithChild = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<BufferSightChild>()
                 .WithNone<BufferSightMemory, ComponentSightMemory, ComponentSightClip>()
                 .Build();
             _queryWithClip = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithAll<ComponentSightClip>()
                 .WithNone<BufferSightMemory, BufferSightChild, ComponentSightMemory>()
                 .Build();
             _query = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
                 .WithNone<BufferSightMemory, ComponentSightMemory>()
                 .WithNone<BufferSightChild, ComponentSightClip>()
                 .Build();
@@ -92,6 +93,7 @@ namespace Perception
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentSightPosition>(isReadOnly: true);
             _handleMemory = SystemAPI.GetComponentTypeHandle<ComponentSightMemory>(isReadOnly: true);
+            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentSightFilter>(isReadOnly: true);
             _handleClip = SystemAPI.GetComponentTypeHandle<ComponentSightClip>(isReadOnly: true);
 
             _lookupBufferChild = SystemAPI.GetBufferLookup<BufferSightChild>(isReadOnly: true);
@@ -113,6 +115,7 @@ namespace Perception
 
             _handlePosition.Update(ref state);
             _handleMemory.Update(ref state);
+            _handleFilter.Update(ref state);
             _handleClip.Update(ref state);
 
             _lookupBufferChild.Update(ref state);
@@ -131,6 +134,7 @@ namespace Perception
 
                 HandlePosition = _handlePosition,
                 HandleMemory = _handleMemory,
+                HandleFilter = _handleFilter,
                 HandleClip = _handleClip,
 
                 LookupBufferChild = _lookupBufferChild,
@@ -148,6 +152,7 @@ namespace Perception
 
                 HandlePosition = _handlePosition,
                 HandleMemory = _handleMemory,
+                HandleFilter = _handleFilter,
 
                 LookupBufferChild = _lookupBufferChild,
                 CollisionWorld = physics.CollisionWorld,
@@ -163,6 +168,7 @@ namespace Perception
 
                 HandlePosition = _handlePosition,
                 HandleMemory = _handleMemory,
+                HandleFilter = _handleFilter,
                 HandleClip = _handleClip,
 
                 LookupBufferChild = _lookupBufferChild,
@@ -178,6 +184,7 @@ namespace Perception
                 HandleBufferCone = _handleBufferCone,
 
                 HandlePosition = _handlePosition,
+                HandleFilter = _handleFilter,
                 HandleClip = _handleClip,
 
                 LookupBufferChild = _lookupBufferChild,
@@ -194,6 +201,7 @@ namespace Perception
 
                 HandlePosition = _handlePosition,
                 HandleMemory = _handleMemory,
+                HandleFilter = _handleFilter,
 
                 LookupBufferChild = _lookupBufferChild,
                 CollisionWorld = physics.CollisionWorld,
@@ -208,6 +216,7 @@ namespace Perception
                 HandleBufferCone = _handleBufferCone,
 
                 HandlePosition = _handlePosition,
+                HandleFilter = _handleFilter,
 
                 LookupBufferChild = _lookupBufferChild,
                 CollisionWorld = physics.CollisionWorld,
@@ -221,6 +230,7 @@ namespace Perception
                 HandleBufferCone = _handleBufferCone,
 
                 HandlePosition = _handlePosition,
+                HandleFilter = _handleFilter,
                 HandleClip = _handleClip,
 
                 LookupBufferChild = _lookupBufferChild,
@@ -235,6 +245,7 @@ namespace Perception
                 HandleBufferCone = _handleBufferCone,
 
                 HandlePosition = _handlePosition,
+                HandleFilter = _handleFilter,
 
                 LookupBufferChild = _lookupBufferChild,
                 CollisionWorld = physics.CollisionWorld,
@@ -299,6 +310,7 @@ namespace Perception
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
@@ -316,6 +328,7 @@ namespace Perception
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
@@ -333,7 +346,7 @@ namespace Perception
                     {
                         var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
                         var collector = new CollectorClosestIgnoreEntityAndChildWithClip(entities[i], bufferChild, clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
                         var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
 
                         if (isPerceived)
@@ -382,6 +395,7 @@ namespace Perception
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
             [ReadOnly] public CollisionWorld CollisionWorld;
@@ -398,6 +412,7 @@ namespace Perception
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
@@ -412,7 +427,7 @@ namespace Perception
                     foreach (var cone in bufferCone)
                     {
                         var collector = new CollectorClosestIgnoreEntityAndChild(entities[i], bufferChild);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
                         var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
 
                         if (isPerceived)
@@ -460,6 +475,7 @@ namespace Perception
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
@@ -476,6 +492,7 @@ namespace Perception
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
@@ -492,7 +509,7 @@ namespace Perception
                     {
                         var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
                         var collector = new CollectorClosestIgnoreEntityWithClip(entities[i], clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
                         var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
 
                         if (isPerceived)
@@ -539,6 +556,7 @@ namespace Perception
             [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
@@ -554,6 +572,7 @@ namespace Perception
                 var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
@@ -569,7 +588,7 @@ namespace Perception
                     {
                         var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
                         var collector = new CollectorClosestIgnoreEntityAndChildWithClip(entities[i], bufferChild, clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
 
                         CollisionWorld.CastRay(raycast, ref collector);
 
@@ -595,6 +614,7 @@ namespace Perception
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
             [ReadOnly] public CollisionWorld CollisionWorld;
@@ -610,6 +630,7 @@ namespace Perception
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
@@ -623,7 +644,7 @@ namespace Perception
                     foreach (var cone in bufferCone)
                     {
                         var collector = new CollectorClosestIgnoreEntity(entities[i]);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
                         var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
 
                         if (isPerceived)
@@ -670,6 +691,7 @@ namespace Perception
             [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
             [ReadOnly] public CollisionWorld CollisionWorld;
@@ -684,6 +706,7 @@ namespace Perception
                 var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
@@ -696,7 +719,7 @@ namespace Perception
                     foreach (var cone in bufferCone)
                     {
                         var collector = new CollectorClosestIgnoreEntityAndChild(entities[i], bufferChild);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
 
                         CollisionWorld.CastRay(raycast, ref collector);
 
@@ -720,6 +743,7 @@ namespace Perception
             [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
@@ -734,6 +758,7 @@ namespace Perception
                 var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
@@ -748,7 +773,7 @@ namespace Perception
                     {
                         var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
                         var collector = new CollectorClosestIgnoreEntityWithClip(entities[i], clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
 
                         CollisionWorld.CastRay(raycast, ref collector);
 
@@ -772,6 +797,7 @@ namespace Perception
             [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
 
             [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
             [ReadOnly] public CollisionWorld CollisionWorld;
@@ -785,6 +811,7 @@ namespace Perception
                 var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
 
                 var positions = chunk.GetNativeArray(ref HandlePosition);
+                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
@@ -796,7 +823,7 @@ namespace Perception
                     foreach (var cone in bufferCone)
                     {
                         var collector = new CollectorClosestIgnoreEntity(entities[i]);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = CollisionFilter.Default };
+                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
 
                         CollisionWorld.CastRay(raycast, ref collector);
 
