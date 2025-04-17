@@ -7,7 +7,7 @@ using Unity.Physics;
 
 namespace Perception
 {
-    [BurstCompile, UpdateAfter(typeof(SystemSightCone)), UpdateAfter(typeof(SystemSightMemory))]
+    [BurstCompile, UpdateAfter(typeof(SystemSightPerceiveSingle))]
     public partial struct SystemSightPerceiveOffset : ISystem
     {
         private EntityQuery _queryWithMemoryWithChildWithClip;
