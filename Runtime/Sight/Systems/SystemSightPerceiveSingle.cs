@@ -10,6 +10,7 @@ namespace Perception
     [BurstCompile, UpdateAfter(typeof(SystemSightCone)), UpdateAfter(typeof(SystemSightMemory))]
     public partial struct SystemSightPerceiveSingle : ISystem
     {
+        private EntityQuery _queryWithoutFilter;
         private EntityQuery _queryWithMemoryWithChildWithClip;
         private EntityQuery _queryWithMemoryWithChild;
         private EntityQuery _queryWithMemoryWithClip;
@@ -37,6 +38,10 @@ namespace Perception
         {
             state.RequireForUpdate<PhysicsWorldSingleton>();
 
+            _queryWithoutFilter = SystemAPI.QueryBuilder()
+                .WithAll<TagSightReceiver>()
+                .WithNone<ComponentSightFilter>()
+                .Build();
             _queryWithMemoryWithChildWithClip = SystemAPI.QueryBuilder()
                 .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
                 .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
@@ -108,6 +113,15 @@ namespace Perception
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var commands = new EntityCommandBuffer(Allocator.Temp);
+
+            foreach (var receiver in _queryWithoutFilter.ToEntityArray(Allocator.Temp))
+            {
+                commands.AddComponent(receiver, new ComponentSightFilter { Value = CollisionFilter.Default });
+            }
+
+            commands.Playback(state.EntityManager);
+
             _handleBufferPerceive.Update(ref state);
             _handleBufferMemory.Update(ref state);
             _handleBufferChild.Update(ref state);
