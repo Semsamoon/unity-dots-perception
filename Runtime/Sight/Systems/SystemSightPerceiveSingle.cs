@@ -11,6 +11,7 @@ namespace Perception
     public partial struct SystemSightPerceiveSingle : ISystem
     {
         private EntityQuery _queryWithoutFilter;
+
         private EntityQuery _queryWithMemoryWithChildWithClip;
         private EntityQuery _queryWithMemoryWithChild;
         private EntityQuery _queryWithMemoryWithClip;
@@ -19,6 +20,8 @@ namespace Perception
         private EntityQuery _queryWithChild;
         private EntityQuery _queryWithClip;
         private EntityQuery _query;
+
+        private EntityTypeHandle _handleEntity;
 
         private BufferTypeHandle<BufferSightPerceive> _handleBufferPerceive;
         private BufferTypeHandle<BufferSightMemory> _handleBufferMemory;
@@ -31,65 +34,32 @@ namespace Perception
         private ComponentTypeHandle<ComponentSightClip> _handleClip;
 
         private BufferLookup<BufferSightChild> _lookupBufferChild;
-        private EntityTypeHandle _handleEntity;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<PhysicsWorldSingleton>();
 
-            _queryWithoutFilter = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver>()
-                .WithNone<ComponentSightFilter>()
-                .Build();
+            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<ComponentSightFilter>().Build();
+
             _queryWithMemoryWithChildWithClip = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightMemory, ComponentSightMemory>()
-                .WithAll<BufferSightChild, ComponentSightClip>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<BufferSightChild, ComponentSightMemory, ComponentSightClip>().Build();
             _queryWithMemoryWithChild = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightMemory, BufferSightChild, ComponentSightMemory>()
-                .WithNone<ComponentSightClip>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<BufferSightChild, ComponentSightMemory>().WithNone<ComponentSightClip>().Build();
             _queryWithMemoryWithClip = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightMemory, ComponentSightMemory, ComponentSightClip>()
-                .WithNone<BufferSightChild>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<ComponentSightMemory, ComponentSightClip>().WithNone<BufferSightChild>().Build();
             _queryWithChildWithClip = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightChild, ComponentSightClip>()
-                .WithNone<BufferSightMemory, ComponentSightMemory>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<BufferSightChild, ComponentSightClip>().WithNone<ComponentSightMemory>().Build();
             _queryWithMemory = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightMemory, ComponentSightMemory>()
-                .WithNone<BufferSightChild, ComponentSightClip>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<ComponentSightMemory>().WithNone<BufferSightChild, ComponentSightClip>().Build();
             _queryWithChild = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<BufferSightChild>()
-                .WithNone<BufferSightMemory, ComponentSightMemory, ComponentSightClip>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<BufferSightChild>().WithNone<ComponentSightMemory, ComponentSightClip>().Build();
             _queryWithClip = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithAll<ComponentSightClip>()
-                .WithNone<BufferSightMemory, BufferSightChild, ComponentSightMemory>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithAll<ComponentSightClip>().WithNone<BufferSightChild, ComponentSightMemory>().Build();
             _query = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, TagSightRaySingle, ComponentSightPosition>()
-                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightFilter>()
-                .WithNone<BufferSightMemory, ComponentSightMemory>()
-                .WithNone<BufferSightChild, ComponentSightClip>()
-                .Build();
+                .WithAll<TagSightReceiver, TagSightRaySingle>().WithNone<BufferSightChild, ComponentSightMemory, ComponentSightClip>().Build();
+
+            _handleEntity = SystemAPI.GetEntityTypeHandle();
 
             _handleBufferPerceive = SystemAPI.GetBufferTypeHandle<BufferSightPerceive>();
             _handleBufferMemory = SystemAPI.GetBufferTypeHandle<BufferSightMemory>();
@@ -102,7 +72,6 @@ namespace Perception
             _handleClip = SystemAPI.GetComponentTypeHandle<ComponentSightClip>(isReadOnly: true);
 
             _lookupBufferChild = SystemAPI.GetBufferLookup<BufferSightChild>(isReadOnly: true);
-            _handleEntity = SystemAPI.GetEntityTypeHandle();
         }
 
         [BurstCompile]
@@ -122,6 +91,8 @@ namespace Perception
 
             commands.Playback(state.EntityManager);
 
+            _handleEntity.Update(ref state);
+
             _handleBufferPerceive.Update(ref state);
             _handleBufferMemory.Update(ref state);
             _handleBufferChild.Update(ref state);
@@ -133,143 +104,137 @@ namespace Perception
             _handleClip.Update(ref state);
 
             _lookupBufferChild.Update(ref state);
-            _handleEntity.Update(ref state);
 
             ref readonly var physics = ref SystemAPI.GetSingletonRW<PhysicsWorldSingleton>().ValueRO;
 
-            var jobUpdatePerceiveWithMemoryWithChildWithClip = new JobUpdatePerceiveWithMemoryWithChildWithClip
+            var commonHandles = new CommonHandles
             {
                 HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferMemory = _handleBufferMemory,
-                HandleBufferChild = _handleBufferChild,
                 HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleMemory = _handleMemory,
-                HandleFilter = _handleFilter,
-                HandleClip = _handleClip,
-
+                HandlePosition = _handlePosition, HandleFilter = _handleFilter,
                 LookupBufferChild = _lookupBufferChild,
                 CollisionWorld = physics.CollisionWorld,
+            };
+
+            var jobHandle = new JobUpdatePerceiveWithMemoryWithChildWithClip
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferMemory = _handleBufferMemory, HandleBufferChild = _handleBufferChild, HandleMemory = _handleMemory, HandleClip = _handleClip,
             }.ScheduleParallel(_queryWithMemoryWithChildWithClip, state.Dependency);
 
-            var jobUpdatePerceiveWithMemoryWithChild = new JobUpdatePerceiveWithMemoryWithChild
+            jobHandle = new JobUpdatePerceiveWithMemoryWithChild
             {
-                HandleEntity = _handleEntity,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferMemory = _handleBufferMemory, HandleBufferChild = _handleBufferChild, HandleMemory = _handleMemory,
+            }.ScheduleParallel(_queryWithMemoryWithChild, jobHandle);
 
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferMemory = _handleBufferMemory,
+            jobHandle = new JobUpdatePerceiveWithMemoryWithClip
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory, HandleClip = _handleClip,
+            }.ScheduleParallel(_queryWithMemoryWithClip, jobHandle);
+
+            jobHandle = new JobUpdatePerceiveWithChildWithClip
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferChild = _handleBufferChild, HandleClip = _handleClip,
+            }.ScheduleParallel(_queryWithChildWithClip, jobHandle);
+
+            jobHandle = new JobUpdatePerceiveWithMemory
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory,
+            }.ScheduleParallel(_queryWithMemory, jobHandle);
+
+            jobHandle = new JobUpdatePerceiveWithChild
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
                 HandleBufferChild = _handleBufferChild,
-                HandleBufferCone = _handleBufferCone,
+            }.ScheduleParallel(_queryWithChild, jobHandle);
 
-                HandlePosition = _handlePosition,
-                HandleMemory = _handleMemory,
-                HandleFilter = _handleFilter,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithMemoryWithChild, jobUpdatePerceiveWithMemoryWithChildWithClip);
-
-            var jobUpdatePerceiveWithMemoryWithClip = new JobUpdatePerceiveWithMemoryWithClip
+            jobHandle = new JobUpdatePerceiveWithClip
             {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferMemory = _handleBufferMemory,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleMemory = _handleMemory,
-                HandleFilter = _handleFilter,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
                 HandleClip = _handleClip,
+            }.ScheduleParallel(_queryWithClip, jobHandle);
 
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithMemoryWithClip, jobUpdatePerceiveWithMemoryWithChild);
-
-            var jobUpdatePerceiveWithChildWithClip = new JobUpdatePerceiveWithChildWithClip
+            state.Dependency = new JobUpdatePerceive
             {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferChild = _handleBufferChild,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleFilter = _handleFilter,
-                HandleClip = _handleClip,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithChildWithClip, jobUpdatePerceiveWithMemoryWithClip);
-
-            var jobUpdatePerceiveWithMemory = new JobUpdatePerceiveWithMemory
-            {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferMemory = _handleBufferMemory,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleMemory = _handleMemory,
-                HandleFilter = _handleFilter,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithMemory, jobUpdatePerceiveWithChildWithClip);
-
-            var jobUpdatePerceiveWithChild = new JobUpdatePerceiveWithChild
-            {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferChild = _handleBufferChild,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleFilter = _handleFilter,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithChild, jobUpdatePerceiveWithMemory);
-
-            var jobUpdatePerceiveWithClip = new JobUpdatePerceiveWithClip
-            {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleFilter = _handleFilter,
-                HandleClip = _handleClip,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_queryWithClip, jobUpdatePerceiveWithChild);
-
-            var jobUpdatePerceive = new JobUpdatePerceive
-            {
-                HandleEntity = _handleEntity,
-
-                HandleBufferPerceive = _handleBufferPerceive,
-                HandleBufferCone = _handleBufferCone,
-
-                HandlePosition = _handlePosition,
-                HandleFilter = _handleFilter,
-
-                LookupBufferChild = _lookupBufferChild,
-                CollisionWorld = physics.CollisionWorld,
-            }.ScheduleParallel(_query, jobUpdatePerceiveWithClip);
-
-            state.Dependency = jobUpdatePerceive;
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+            }.ScheduleParallel(_query, jobHandle);
         }
 
         [BurstCompile]
-        private static bool IsChild(in Entity entity, in DynamicBuffer<BufferSightChild> bufferChild)
+        public static void CastRay(in Entity receiver, in float3 position, in DynamicBuffer<BufferSightChild> bufferChild,
+            in float3 sourcePosition, in CollisionFilter filter, ref CollisionWorld collisionWorld, out Entity hit, float clipSquare = 0)
+        {
+            var clipFraction = clipSquare / math.distancesq(sourcePosition, position);
+            var collector = new CollectorClosestIgnoreEntityAndChildWithClip(receiver, bufferChild, clipFraction);
+            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = filter };
+
+            collisionWorld.CastRay(raycast, ref collector);
+            hit = collector.Hit.Entity;
+        }
+
+        [BurstCompile]
+        public static void CastRay(in Entity receiver, in float3 position,
+            in float3 sourcePosition, in CollisionFilter filter, ref CollisionWorld collisionWorld, out Entity hit, float clipSquare = 0)
+        {
+            var clipFraction = clipSquare / math.distancesq(sourcePosition, position);
+            var collector = new CollectorClosestIgnoreEntityWithClip(receiver, clipFraction);
+            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = filter };
+
+            collisionWorld.CastRay(raycast, ref collector);
+            hit = collector.Hit.Entity;
+        }
+
+        [BurstCompile]
+        public static bool ProcessHit(in Entity hit, in BufferSightCone cone,
+            ref DynamicBuffer<BufferSightPerceive> bufferPerceive, ref BufferLookup<BufferSightChild> buffersChild)
+        {
+            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && IsChild(hit, in sourceBufferChild)))
+            {
+                bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
+                return true;
+            }
+
+            return false;
+        }
+
+        [BurstCompile]
+        public static bool ProcessHit(in Entity hit, in BufferSightCone cone,
+            ref DynamicBuffer<BufferSightPerceive> bufferPerceive, ref DynamicBuffer<BufferSightMemory> bufferMemory, ref BufferLookup<BufferSightChild> buffersChild)
+        {
+            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && IsChild(hit, in sourceBufferChild)))
+            {
+                bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
+                RemoveFromMemory(in cone.Source, ref bufferMemory);
+                return true;
+            }
+
+            return false;
+        }
+
+        [BurstCompile]
+        public static void PerceiveToMemory(
+            ref DynamicBuffer<BufferSightPerceive> bufferPerceive, int perceiveLength, ref DynamicBuffer<BufferSightMemory> bufferMemory, float memoryTime)
+        {
+            if (perceiveLength <= 0)
+            {
+                return;
+            }
+
+            for (var j = 0; j < perceiveLength; j++)
+            {
+                var perceive = bufferPerceive[j];
+                bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memoryTime });
+            }
+
+            bufferPerceive.RemoveRange(0, perceiveLength);
+        }
+
+        [BurstCompile]
+        public static bool IsChild(in Entity entity, in DynamicBuffer<BufferSightChild> bufferChild)
         {
             foreach (var child in bufferChild)
             {
@@ -283,24 +248,26 @@ namespace Perception
         }
 
         [BurstCompile]
-        private static bool IsPerceived(in Entity entity, in DynamicBuffer<BufferSightPerceive> bufferPerceive, int length, out int index)
+        public static bool IsPerceived(in Entity entity, in DynamicBuffer<BufferSightPerceive> bufferPerceive, int length, out int index, out BufferSightPerceive perceive)
         {
-            index = -1;
-
             for (var i = 0; i < length; i++)
             {
-                if (bufferPerceive[i].Source == entity)
+                perceive = bufferPerceive[i];
+
+                if (perceive.Source == entity)
                 {
                     index = i;
                     return true;
                 }
             }
 
+            index = -1;
+            perceive = default;
             return false;
         }
 
         [BurstCompile]
-        private static void RemoveFromMemory(in Entity entity, ref DynamicBuffer<BufferSightMemory> bufferMemory)
+        public static void RemoveFromMemory(in Entity entity, ref DynamicBuffer<BufferSightMemory> bufferMemory)
         {
             for (var i = 0; i < bufferMemory.Length; i++)
             {
@@ -315,53 +282,39 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithMemoryWithChildWithClip : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
+            [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
 
-            public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
+            [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                CommonHandles.Get(in chunk, out var arrays);
+
                 var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
                 var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
-
-                var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var bufferMemory = buffersMemory[i];
                     var bufferChild = buffersChild[i];
-                    var bufferCone = buffersCone[i];
                     var memory = memories[i];
                     var clip = clips[i];
-
                     var perceiveLength = bufferPerceive.Length;
 
                     foreach (var cone in bufferCone)
                     {
-                        var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
-                        var collector = new CollectorClosestIgnoreEntityAndChildWithClip(entities[i], bufferChild, clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
+                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
@@ -370,29 +323,15 @@ namespace Perception
                             bufferPerceive.RemoveAtSwapBack(perceiveLength);
                         }
 
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var sourceBufferChild)
-                                && IsChild(collector.Hit.Entity, in sourceBufferChild)))
+                        CastRay(in receiver, in position.Receiver, in bufferChild,
+                            in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit, clip.RadiusSquared);
+                        if (!ProcessHit(in hit, in cone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                            RemoveFromMemory(in cone.Source, ref bufferMemory);
-                            continue;
-                        }
-
-                        if (isPerceived)
-                        {
-                            bufferMemory.Add(new BufferSightMemory { Position = cone.Position, Source = cone.Source, Time = memory.Time });
+                            bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
                         }
                     }
 
-                    for (var j = perceiveLength - 1; j >= 0; j--)
-                    {
-                        var perceive = bufferPerceive[j];
-                        bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
-                        bufferPerceive.RemoveAtSwapBack(j);
-                    }
+                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -400,49 +339,36 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithMemoryWithChild : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
+            [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
 
-            public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
+            [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                CommonHandles.Get(in chunk, out var arrays);
+
                 var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
                 var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
-
-                var positions = chunk.GetNativeArray(ref HandlePosition);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var bufferMemory = buffersMemory[i];
-                    var bufferCone = buffersCone[i];
                     var bufferChild = buffersChild[i];
                     var memory = memories[i];
-
                     var perceiveLength = bufferPerceive.Length;
 
                     foreach (var cone in bufferCone)
                     {
-                        var collector = new CollectorClosestIgnoreEntityAndChild(entities[i], bufferChild);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
+                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
@@ -451,29 +377,14 @@ namespace Perception
                             bufferPerceive.RemoveAtSwapBack(perceiveLength);
                         }
 
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var sourceBufferChild)
-                                && IsChild(collector.Hit.Entity, in sourceBufferChild)))
+                        CastRay(in receiver, in position.Receiver, in bufferChild, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
+                        if (!ProcessHit(in hit, in cone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                            RemoveFromMemory(in cone.Source, ref bufferMemory);
-                            continue;
-                        }
-
-                        if (isPerceived)
-                        {
-                            bufferMemory.Add(new BufferSightMemory { Position = cone.Position, Source = cone.Source, Time = memory.Time });
+                            bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
                         }
                     }
 
-                    for (var j = perceiveLength - 1; j >= 0; j--)
-                    {
-                        var perceive = bufferPerceive[j];
-                        bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
-                        bufferPerceive.RemoveAtSwapBack(j);
-                    }
+                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -481,50 +392,36 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithMemoryWithClip : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
+            [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
 
-            public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var bufferMemory = buffersMemory[i];
-                    var bufferCone = buffersCone[i];
                     var memory = memories[i];
                     var clip = clips[i];
-
                     var perceiveLength = bufferPerceive.Length;
 
                     foreach (var cone in bufferCone)
                     {
-                        var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
-                        var collector = new CollectorClosestIgnoreEntityWithClip(entities[i], clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
+                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
@@ -533,29 +430,14 @@ namespace Perception
                             bufferPerceive.RemoveAtSwapBack(perceiveLength);
                         }
 
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var bufferChild)
-                                && IsChild(collector.Hit.Entity, in bufferChild)))
+                        CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit, clip.RadiusSquared);
+                        if (!ProcessHit(in hit, in cone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                            RemoveFromMemory(in cone.Source, ref bufferMemory);
-                            continue;
-                        }
-
-                        if (isPerceived)
-                        {
-                            bufferMemory.Add(new BufferSightMemory { Position = cone.Position, Source = cone.Source, Time = memory.Time });
+                            bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
                         }
                     }
 
-                    for (var j = perceiveLength - 1; j >= 0; j--)
-                    {
-                        var perceive = bufferPerceive[j];
-                        bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
-                        bufferPerceive.RemoveAtSwapBack(j);
-                    }
+                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -563,55 +445,36 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithChildWithClip : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
-
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
+
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                var positions = chunk.GetNativeArray(ref HandlePosition);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
+                var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var bufferChild = buffersChild[i];
-                    var bufferCone = buffersCone[i];
                     var clip = clips[i];
 
                     bufferPerceive.Clear();
 
                     foreach (var cone in bufferCone)
                     {
-                        var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
-                        var collector = new CollectorClosestIgnoreEntityAndChildWithClip(entities[i], bufferChild, clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var sourceBufferChild)
-                                && IsChild(collector.Hit.Entity, in sourceBufferChild)))
-                        {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                        }
+                        CastRay(in receiver, in position.Receiver, in bufferChild,
+                            in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit, clip.RadiusSquared);
+                        ProcessHit(in hit, in cone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
             }
@@ -620,46 +483,33 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithMemory : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
+            [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
 
-            public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                var positions = chunk.GetNativeArray(ref HandlePosition);
+                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
-                    var bufferMemory = buffersMemory[i];
-                    var bufferCone = buffersCone[i];
-                    var memory = memories[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
 
+                    var bufferMemory = buffersMemory[i];
+                    var memory = memories[i];
                     var perceiveLength = bufferPerceive.Length;
 
                     foreach (var cone in bufferCone)
                     {
-                        var collector = new CollectorClosestIgnoreEntity(entities[i]);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index);
+                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
@@ -668,29 +518,14 @@ namespace Perception
                             bufferPerceive.RemoveAtSwapBack(perceiveLength);
                         }
 
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var bufferChild)
-                                && IsChild(collector.Hit.Entity, in bufferChild)))
+                        CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
+                        if (!ProcessHit(in hit, in cone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                            RemoveFromMemory(in cone.Source, ref bufferMemory);
-                            continue;
-                        }
-
-                        if (isPerceived)
-                        {
-                            bufferMemory.Add(new BufferSightMemory { Position = cone.Position, Source = cone.Source, Time = memory.Time });
+                            bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
                         }
                     }
 
-                    for (var j = perceiveLength - 1; j >= 0; j--)
-                    {
-                        var perceive = bufferPerceive[j];
-                        bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
-                        bufferPerceive.RemoveAtSwapBack(j);
-                    }
+                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -698,51 +533,32 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithChild : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
-
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
+
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                var positions = chunk.GetNativeArray(ref HandlePosition);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
+                var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var bufferChild = buffersChild[i];
-                    var bufferCone = buffersCone[i];
 
                     bufferPerceive.Clear();
 
                     foreach (var cone in bufferCone)
                     {
-                        var collector = new CollectorClosestIgnoreEntityAndChild(entities[i], bufferChild);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var sourceBufferChild)
-                                && IsChild(collector.Hit.Entity, in sourceBufferChild)))
-                        {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                        }
+                        CastRay(in receiver, in position.Receiver, bufferChild, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
+                        ProcessHit(in hit, in cone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
             }
@@ -751,52 +567,32 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceiveWithClip : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
-
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
+            [ReadOnly] public CommonHandles CommonHandles;
 
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                var positions = chunk.GetNativeArray(ref HandlePosition);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
                 var clips = chunk.GetNativeArray(ref HandleClip);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
-                    var bufferCone = buffersCone[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
+
                     var clip = clips[i];
 
                     bufferPerceive.Clear();
 
                     foreach (var cone in bufferCone)
                     {
-                        var clipFraction = clip.RadiusSquared / math.distancesq(cone.Position, positions[i].Receiver);
-                        var collector = new CollectorClosestIgnoreEntityWithClip(entities[i], clipFraction);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var bufferChild)
-                                && IsChild(collector.Hit.Entity, in bufferChild)))
-                        {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                        }
+                        CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit, clip.RadiusSquared);
+                        ProcessHit(in hit, in cone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
             }
@@ -805,50 +601,80 @@ namespace Perception
         [BurstCompile]
         private struct JobUpdatePerceive : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle HandleEntity;
-
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
-            [ReadOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
-
-            [ReadOnly] public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
-
-            [ReadOnly] public BufferLookup<BufferSightChild> LookupBufferChild;
-            [ReadOnly] public CollisionWorld CollisionWorld;
+            [ReadOnly] public CommonHandles CommonHandles;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var entities = chunk.GetNativeArray(HandleEntity);
-
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
-                var buffersCone = chunk.GetBufferAccessor(ref HandleBufferCone);
-
-                var positions = chunk.GetNativeArray(ref HandlePosition);
-                var filters = chunk.GetNativeArray(ref HandleFilter);
+                CommonHandles.Get(in chunk, out var arrays);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
-                    var bufferCone = buffersCone[i];
+                    arrays.Get(i, out var receiver, out var bufferCone, out var position, out var filter);
 
                     bufferPerceive.Clear();
 
                     foreach (var cone in bufferCone)
                     {
-                        var collector = new CollectorClosestIgnoreEntity(entities[i]);
-                        var raycast = new RaycastInput { Start = positions[i].Receiver, End = cone.Position, Filter = filters[i].Value };
-
-                        CollisionWorld.CastRay(raycast, ref collector);
-
-                        if (collector.Hit.Entity == cone.Source
-                            || (LookupBufferChild.TryGetBuffer(cone.Source, out var bufferChild)
-                                && IsChild(collector.Hit.Entity, in bufferChild)))
-                        {
-                            bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                        }
+                        CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
+                        ProcessHit(in hit, in cone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
+            }
+        }
+
+        [BurstCompile]
+        private struct CommonHandles
+        {
+            public EntityTypeHandle HandleEntity;
+
+            public BufferTypeHandle<BufferSightCone> HandleBufferCone;
+
+            public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
+
+            public BufferLookup<BufferSightChild> LookupBufferChild;
+
+            public CollisionWorld CollisionWorld;
+
+            [BurstCompile]
+            public void Get(in ArchetypeChunk chunk, out CommonArrays arrays)
+            {
+                arrays = new CommonArrays
+                {
+                    Entities = chunk.GetNativeArray(HandleEntity),
+
+                    BuffersCone = chunk.GetBufferAccessor(ref HandleBufferCone),
+
+                    Positions = chunk.GetNativeArray(ref HandlePosition),
+                    Filters = chunk.GetNativeArray(ref HandleFilter),
+                };
+            }
+        }
+
+        [BurstCompile]
+        private struct CommonArrays
+        {
+            public NativeArray<Entity> Entities;
+
+            public BufferAccessor<BufferSightCone> BuffersCone;
+
+            public NativeArray<ComponentSightPosition> Positions;
+            public NativeArray<ComponentSightFilter> Filters;
+
+            [BurstCompile]
+            public void Get(int index,
+                out Entity receiver, out DynamicBuffer<BufferSightCone> bufferCone, out ComponentSightPosition position, out ComponentSightFilter filters)
+            {
+                receiver = Entities[index];
+
+                bufferCone = BuffersCone[index];
+
+                position = Positions[index];
+                filters = Filters[index];
             }
         }
     }
