@@ -2,6 +2,7 @@
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Transforms;
 
 namespace Perception
@@ -10,6 +11,8 @@ namespace Perception
     public partial struct SystemSightPosition : ISystem
     {
         private EntityQuery _queryWithoutPosition;
+        private EntityQuery _queryWithoutTransform;
+
         private EntityQuery _queryWithOffset;
         private EntityQuery _query;
 
@@ -21,6 +24,7 @@ namespace Perception
         public void OnCreate(ref SystemState state)
         {
             _queryWithoutPosition = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentSightPosition>().Build();
+            _queryWithoutTransform = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<LocalToWorld>().Build();
 
             _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithAll<ComponentSightOffset>().Build();
             _query = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentSightOffset>().Build();
@@ -43,6 +47,11 @@ namespace Perception
             foreach (var entity in _queryWithoutPosition.ToEntityArray(Allocator.Temp))
             {
                 commands.AddComponent(entity, new ComponentSightPosition());
+            }
+
+            foreach (var entity in _queryWithoutTransform.ToEntityArray(Allocator.Temp))
+            {
+                commands.AddComponent(entity, new LocalToWorld { Value = float4x4.identity });
             }
 
             commands.Playback(state.EntityManager);
