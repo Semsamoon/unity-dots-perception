@@ -20,20 +20,10 @@ namespace Perception
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _queryWithoutPosition = SystemAPI.QueryBuilder()
-                .WithAll<LocalToWorld>()
-                .WithAny<TagSightReceiver, TagSightSource>()
-                .WithNone<ComponentSightPosition>()
-                .Build();
-            _queryWithOffset = SystemAPI.QueryBuilder()
-                .WithAll<LocalToWorld, ComponentSightPosition, ComponentSightOffset>()
-                .WithAny<TagSightReceiver, TagSightSource>()
-                .Build();
-            _query = SystemAPI.QueryBuilder()
-                .WithAll<LocalToWorld, ComponentSightPosition>()
-                .WithAny<TagSightReceiver, TagSightSource>()
-                .WithNone<ComponentSightOffset>()
-                .Build();
+            _queryWithoutPosition = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentSightPosition>().Build();
+
+            _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithAll<ComponentSightOffset>().Build();
+            _query = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentSightOffset>().Build();
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentSightPosition>();
             _handleOffset = SystemAPI.GetComponentTypeHandle<ComponentSightOffset>(isReadOnly: true);
@@ -61,40 +51,39 @@ namespace Perception
             _handleOffset.Update(ref state);
             _handleTransform.Update(ref state);
 
-            var jobWithOffset = new JobUpdatePositionWithOffset
+            var jobHandle = new JobUpdatePositionWithOffset
             {
-                HandlePosition = _handlePosition,
+                HandlePosition = _handlePosition, HandleTransform = _handleTransform,
                 HandleOffset = _handleOffset,
-                HandleTransform = _handleTransform,
             }.ScheduleParallel(_queryWithOffset, state.Dependency);
 
-            var job = new JobUpdatePosition
+            state.Dependency = new JobUpdatePosition
             {
-                HandlePosition = _handlePosition,
-                HandleTransform = _handleTransform,
-            }.ScheduleParallel(_query, jobWithOffset);
-
-            state.Dependency = job;
+                HandlePosition = _handlePosition, HandleTransform = _handleTransform,
+            }.ScheduleParallel(_query, jobHandle);
         }
 
         [BurstCompile]
         private struct JobUpdatePositionWithOffset : IJobChunk
         {
             public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            [ReadOnly] public ComponentTypeHandle<ComponentSightOffset> HandleOffset;
             [ReadOnly] public ComponentTypeHandle<LocalToWorld> HandleTransform;
+
+            [ReadOnly] public ComponentTypeHandle<ComponentSightOffset> HandleOffset;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 var positions = chunk.GetNativeArray(ref HandlePosition);
-                var offsets = chunk.GetNativeArray(ref HandleOffset);
                 var transforms = chunk.GetNativeArray(ref HandleTransform);
+
+                var offsets = chunk.GetNativeArray(ref HandleOffset);
 
                 for (var i = 0; i < chunk.Count; i++)
                 {
-                    var offset = offsets[i];
                     var transform = transforms[i];
+
+                    var offset = offsets[i];
 
                     positions[i] = new ComponentSightPosition
                     {
