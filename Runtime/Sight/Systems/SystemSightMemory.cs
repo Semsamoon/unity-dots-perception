@@ -8,7 +8,8 @@ namespace Perception
     [BurstCompile]
     public partial struct SystemSightMemory : ISystem
     {
-        private EntityQuery _queryWithoutBuffer;
+        private EntityQuery _queryWithoutMemory;
+
         private EntityQuery _query;
 
         private BufferTypeHandle<BufferSightMemory> _handleBufferMemory;
@@ -16,13 +17,9 @@ namespace Perception
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _queryWithoutBuffer = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, ComponentSightMemory>()
-                .WithNone<BufferSightMemory>()
-                .Build();
-            _query = SystemAPI.QueryBuilder()
-                .WithAll<TagSightReceiver, BufferSightMemory>()
-                .Build();
+            _queryWithoutMemory = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, ComponentSightMemory>().WithNone<BufferSightMemory>().Build();
+
+            _query = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, BufferSightMemory>().Build();
 
             _handleBufferMemory = SystemAPI.GetBufferTypeHandle<BufferSightMemory>();
         }
@@ -37,7 +34,7 @@ namespace Perception
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var receiver in _queryWithoutBuffer.ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutMemory.ToEntityArray(Allocator.Temp))
             {
                 commands.AddBuffer<BufferSightMemory>(receiver);
             }
@@ -46,13 +43,10 @@ namespace Perception
 
             _handleBufferMemory.Update(ref state);
 
-            var job = new JobUpdateMemory
+            state.Dependency = new JobUpdateMemory
             {
-                HandleBufferMemory = _handleBufferMemory,
-                DeltaTime = SystemAPI.Time.DeltaTime,
+                HandleBufferMemory = _handleBufferMemory, DeltaTime = SystemAPI.Time.DeltaTime,
             }.ScheduleParallel(_query, state.Dependency);
-
-            state.Dependency = job;
         }
 
         [BurstCompile]
