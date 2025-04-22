@@ -7,7 +7,7 @@ using Unity.Transforms;
 
 namespace Perception
 {
-    [BurstCompile, UpdateAfter(typeof(SystemSightPosition))]
+    [BurstCompile, UpdateInGroup(typeof(SightSystemGroup)), UpdateAfter(typeof(SystemSightPosition))]
     public partial struct SystemSightCone : ISystem
     {
         private EntityQuery _queryWithoutPerceive;

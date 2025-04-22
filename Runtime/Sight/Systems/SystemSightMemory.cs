@@ -5,7 +5,7 @@ using Unity.Entities;
 
 namespace Perception
 {
-    [BurstCompile]
+    [BurstCompile, UpdateInGroup(typeof(SightSystemGroup))]
     public partial struct SystemSightMemory : ISystem
     {
         private EntityQuery _queryWithoutMemory;

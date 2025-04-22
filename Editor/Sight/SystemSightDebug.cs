@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Perception.Editor
 {
-    [BurstCompile]
+    [BurstCompile, UpdateInGroup(typeof(SightSystemGroup), OrderLast = true)]
     public partial struct SystemSightDebug : ISystem
     {
         private EntityQuery _queryWithoutDebug;
