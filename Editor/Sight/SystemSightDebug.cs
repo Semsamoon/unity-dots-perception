@@ -1,4 +1,5 @@
-﻿using Unity.Collections;
+﻿using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -6,192 +7,204 @@ using UnityEngine;
 
 namespace Perception.Editor
 {
+    [BurstCompile]
     public partial struct SystemSightDebug : ISystem
     {
+        private EntityQuery _queryWithoutDebug;
+
+        private EntityQuery _queryWithExtendWithClip;
+        private EntityQuery _queryWithExtend;
+        private EntityQuery _queryWithClip;
+        private EntityQuery _query;
+        private EntityQuery _queryPerceiveWithMemory;
+        private EntityQuery _queryPerceive;
+
+        private ComponentLookup<ComponentSightPosition> _lookupPosition;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _queryWithoutDebug = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithAbsent<TagSightDebug>().Build();
+
+            _queryWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend, ComponentSightClip>().Build();
+            _queryWithExtend = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend>().WithNone<ComponentSightClip>().Build();
+            _queryWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightClip>().WithNone<ComponentSightExtend>().Build();
+            _query = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithNone<ComponentSightExtend, ComponentSightClip>().Build();
+            _queryPerceiveWithMemory = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightPosition>().WithAll<BufferSightMemory, ComponentSightMemory>().Build();
+            _queryPerceive = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+                .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightPosition>().WithNone<ComponentSightMemory>().Build();
+
+            _lookupPosition = SystemAPI.GetComponentLookup<ComponentSightPosition>(isReadOnly: true);
         }
 
+        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var entity in SystemAPI
-                         .QueryBuilder()
-                         .WithAny<TagSightReceiver>()
-                         .WithNone<TagSightDebug>()
-                         .Build()
-                         .ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutDebug.ToEntityArray(Allocator.Temp))
             {
-                commands.AddComponent<TagSightDebug>(entity);
-                commands.SetComponentEnabled<TagSightDebug>(entity, false);
+                commands.AddComponent<TagSightDebug>(receiver);
+                commands.SetComponentEnabled<TagSightDebug>(receiver, false);
             }
 
             commands.Playback(state.EntityManager);
 
-            state.Dependency.Complete();
+            _lookupPosition.Update(ref state);
 
-            var buffersPerceive = SystemAPI.GetBufferLookup<BufferSightPerceive>();
-            var buffersMemory = SystemAPI.GetBufferLookup<BufferSightMemory>();
-            var buffersCone = SystemAPI.GetBufferLookup<BufferSightCone>();
+            var jobHandle = new JobDebugReceiverWithExtendWithClip().ScheduleParallel(_queryWithExtendWithClip, state.Dependency);
+            jobHandle = new JobDebugReceiverWithExtend().ScheduleParallel(_queryWithExtend, jobHandle);
+            jobHandle = new JobDebugReceiverWithClip().ScheduleParallel(_queryWithClip, jobHandle);
+            jobHandle = new JobDebugReceiver().ScheduleParallel(_query, jobHandle);
+            jobHandle = new JobDebugSourceWithMemory { LookupPosition = _lookupPosition, }.ScheduleParallel(_queryPerceiveWithMemory, jobHandle);
+            state.Dependency = new JobDebugSource().ScheduleParallel(_queryPerceive, jobHandle);
+        }
 
-            foreach (var (positionRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>()
-                         .WithAll<BufferSightCone, BufferSightPerceive, BufferSightMemory>()
-                         .WithEntityAccess())
+        [BurstCompile]
+        public static bool IsMemorized(in Entity entity, in DynamicBuffer<BufferSightMemory> bufferMemory)
+        {
+            foreach (var memory in bufferMemory)
             {
-                var position = positionRO.ValueRO.Receiver;
-                var bufferPerceive = buffersPerceive[receiver];
-                var bufferMemory = buffersMemory[receiver];
-                var bufferCone = buffersCone[receiver];
-
-                foreach (var cone in bufferCone)
+                if (memory.Source == entity)
                 {
-                    if (!IsPerceived(cone.Source, bufferPerceive) && !IsMemorized(cone.Source, bufferMemory))
-                    {
-                        Debug.DrawLine(position, cone.Position, Color.red);
-                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
-                    }
+                    return true;
                 }
+            }
 
+            return false;
+        }
+
+        [BurstCompile]
+        private partial struct JobDebugReceiverWithExtendWithClip : IJobEntity
+        {
+            [BurstCompile]
+            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform,
+                in ComponentSightExtend extend, in ComponentSightClip clip)
+            {
+                var radius = math.sqrt(cone.RadiusSquared);
+                var angles = math.acos(cone.AnglesCos);
+                var extendRadius = math.sqrt(extend.RadiusSquared);
+                var extendAngles = math.acos(extend.AnglesCos);
+                var clipRadius = math.sqrt(clip.RadiusSquared);
+
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, extendRadius, extendAngles, Color.yellow);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, extendAngles, Color.gray);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct JobDebugReceiverWithExtend : IJobEntity
+        {
+            [BurstCompile]
+            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightExtend extend)
+            {
+                var radius = math.sqrt(cone.RadiusSquared);
+                var angles = math.acos(cone.AnglesCos);
+                var extendRadius = math.sqrt(extend.RadiusSquared);
+                var extendAngles = math.acos(extend.AnglesCos);
+
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendRadius, extendAngles, Color.yellow);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Color.green);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct JobDebugReceiverWithClip : IJobEntity
+        {
+            [BurstCompile]
+            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightClip clip)
+            {
+                var radius = math.sqrt(cone.RadiusSquared);
+                var angles = math.acos(cone.AnglesCos);
+                var clipRadius = math.sqrt(clip.RadiusSquared);
+
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, angles, Color.gray);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct JobDebugReceiver : IJobEntity
+        {
+            [BurstCompile]
+            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform)
+            {
+                var radius = math.sqrt(cone.RadiusSquared);
+                var angles = math.acos(cone.AnglesCos);
+
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Color.green);
+            }
+        }
+
+        [BurstCompile]
+        private partial struct JobDebugSourceWithMemory : IJobEntity
+        {
+            [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
+
+            [BurstCompile]
+            public void Execute(in DynamicBuffer<BufferSightPerceive> bufferPerceive, in DynamicBuffer<BufferSightMemory> bufferMemory,
+                in DynamicBuffer<BufferSightCone> bufferCone, in ComponentSightPosition position)
+            {
                 foreach (var perceive in bufferPerceive)
                 {
-                    Debug.DrawLine(position, perceive.Position, Color.green);
+                    Debug.DrawLine(position.Receiver, perceive.Position, Color.green);
                     DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
                 }
 
                 foreach (var memory in bufferMemory)
                 {
-                    var sourcePosition = SystemAPI.GetComponentRO<ComponentSightPosition>(memory.Source).ValueRO.Source;
+                    var sourcePosition = LookupPosition[memory.Source].Source;
 
-                    Debug.DrawLine(position, memory.Position, Color.yellow);
+                    Debug.DrawLine(position.Receiver, memory.Position, Color.yellow);
                     Debug.DrawLine(sourcePosition, memory.Position, Color.yellow);
                     DebugAdvanced.DrawOctahedron(memory.Position, new float3(0.125f, 0.25f, 0.125f), Color.yellow);
                     DebugAdvanced.DrawOctahedron(sourcePosition, new float3(0.25f, 0.5f, 0.25f), Color.yellow);
                 }
-            }
-
-            foreach (var (positionRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentSightPosition>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>()
-                         .WithAll<BufferSightCone, BufferSightPerceive>()
-                         .WithNone<BufferSightMemory>()
-                         .WithEntityAccess())
-            {
-                var position = positionRO.ValueRO.Receiver;
-                var bufferPerceive = buffersPerceive[receiver];
-                var bufferCone = buffersCone[receiver];
 
                 foreach (var cone in bufferCone)
                 {
-                    if (!IsPerceived(cone.Source, bufferPerceive))
+                    if (!SystemSightPerceiveSingle.IsPerceived(in cone.Source, in bufferPerceive, bufferPerceive.Length, out _, out _)
+                        && !IsMemorized(cone.Source, bufferMemory))
                     {
-                        Debug.DrawLine(position, cone.Position, Color.red);
+                        Debug.DrawLine(position.Receiver, cone.Position, Color.red);
                         DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
                     }
                 }
+            }
+        }
 
+        [BurstCompile]
+        private partial struct JobDebugSource : IJobEntity
+        {
+            [BurstCompile]
+            public void Execute(in DynamicBuffer<BufferSightPerceive> bufferPerceive, in DynamicBuffer<BufferSightCone> bufferCone, in ComponentSightPosition position)
+            {
                 foreach (var perceive in bufferPerceive)
                 {
-                    Debug.DrawLine(position, perceive.Position, Color.green);
+                    Debug.DrawLine(position.Receiver, perceive.Position, Color.green);
                     DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
                 }
-            }
 
-            foreach (var (transformRO, positionRO, coneRO, extendRO, clipRO) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>,
-                             RefRO<ComponentSightExtend>, RefRO<ComponentSightClip>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>())
-            {
-                var position = positionRO.ValueRO.Receiver;
-                var rotation = transformRO.ValueRO.Rotation;
-                var radius = math.sqrt(coneRO.ValueRO.RadiusSquared);
-                var extendRadius = math.sqrt(extendRO.ValueRO.RadiusSquared);
-                var angles = math.acos(coneRO.ValueRO.AnglesCos);
-                var extendAngles = math.acos(extendRO.ValueRO.AnglesCos);
-                var clip = math.sqrt(clipRO.ValueRO.RadiusSquared);
-
-                SightSenseAuthoring.DrawCone(position, rotation, clip, extendRadius, extendAngles, Color.yellow);
-                SightSenseAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
-                SightSenseAuthoring.DrawCone(position, rotation, 0, clip, extendAngles, Color.gray);
-            }
-
-            foreach (var (transformRO, positionRO, coneRO, clipRO) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
-                             RefRO<ComponentSightCone>, RefRO<ComponentSightClip>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>()
-                         .WithNone<ComponentSightExtend>())
-            {
-                var position = positionRO.ValueRO.Receiver;
-                var rotation = transformRO.ValueRO.Rotation;
-                var radius = math.sqrt(coneRO.ValueRO.RadiusSquared);
-                var angles = math.acos(coneRO.ValueRO.AnglesCos);
-                var clip = math.sqrt(clipRO.ValueRO.RadiusSquared);
-
-                SightSenseAuthoring.DrawCone(position, rotation, clip, radius, angles, Color.green);
-                SightSenseAuthoring.DrawCone(position, rotation, 0, clip, angles, Color.gray);
-            }
-
-            foreach (var (transformRO, positionRO, coneRO, extendRO) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>,
-                             RefRO<ComponentSightCone>, RefRO<ComponentSightExtend>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>()
-                         .WithNone<ComponentSightClip>())
-            {
-                var position = positionRO.ValueRO.Receiver;
-                var rotation = transformRO.ValueRO.Rotation;
-                var radius = math.sqrt(coneRO.ValueRO.RadiusSquared);
-                var extendRadius = math.sqrt(extendRO.ValueRO.RadiusSquared);
-                var angles = math.acos(coneRO.ValueRO.AnglesCos);
-                var extendAngles = math.acos(extendRO.ValueRO.AnglesCos);
-
-                SightSenseAuthoring.DrawCone(position, rotation, 0, extendRadius, extendAngles, Color.yellow);
-                SightSenseAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
-            }
-
-            foreach (var (transformRO, positionRO, coneRO) in SystemAPI
-                         .Query<RefRO<LocalToWorld>, RefRO<ComponentSightPosition>, RefRO<ComponentSightCone>>()
-                         .WithAll<TagSightReceiver, TagSightDebug>()
-                         .WithNone<ComponentSightClip, ComponentSightExtend>())
-            {
-                var position = positionRO.ValueRO.Receiver;
-                var rotation = transformRO.ValueRO.Rotation;
-                var radius = math.sqrt(coneRO.ValueRO.RadiusSquared);
-                var angles = math.acos(coneRO.ValueRO.AnglesCos);
-
-                SightSenseAuthoring.DrawCone(position, rotation, 0, radius, angles, Color.green);
-            }
-        }
-
-        private bool IsPerceived(Entity source, DynamicBuffer<BufferSightPerceive> bufferPerceive)
-        {
-            foreach (var perceive in bufferPerceive)
-            {
-                if (perceive.Source == source)
+                foreach (var cone in bufferCone)
                 {
-                    return true;
+                    if (!SystemSightPerceiveSingle.IsPerceived(in cone.Source, in bufferPerceive, bufferPerceive.Length, out _, out _))
+                    {
+                        Debug.DrawLine(position.Receiver, cone.Position, Color.red);
+                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
+                    }
                 }
             }
-
-            return false;
-        }
-
-        private bool IsMemorized(Entity source, DynamicBuffer<BufferSightMemory> bufferMemory)
-        {
-            foreach (var memory in bufferMemory)
-            {
-                if (memory.Source == source)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
     }
 }
