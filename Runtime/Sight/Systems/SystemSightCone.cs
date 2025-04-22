@@ -2,7 +2,6 @@
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
 using Unity.Transforms;
 
 namespace Perception
@@ -125,38 +124,6 @@ namespace Perception
         }
 
         [BurstCompile]
-        private static bool IsInsideCone(in float3 origin, in float3 target, in LocalToWorld transform, in float2 anglesCos, float radiusSquared, float clipSquared = 0)
-        {
-            var difference = target - origin;
-            var distanceSquared = math.lengthsq(difference);
-
-            if (distanceSquared > radiusSquared || distanceSquared < clipSquared)
-            {
-                return false;
-            }
-
-            var directionLocal = transform.Value.InverseTransformDirection(difference);
-            var squared = directionLocal * directionLocal;
-
-            return directionLocal.z / math.sqrt(squared.x + squared.z) >= anglesCos.x
-                   && math.sqrt((squared.x + squared.z) / (squared.x + squared.y + squared.z)) >= anglesCos.y;
-        }
-
-        [BurstCompile]
-        private static bool IsPerceived(in Entity entity, in DynamicBuffer<BufferSightPerceive> bufferPerceive)
-        {
-            foreach (var perceive in bufferPerceive)
-            {
-                if (perceive.Source == entity)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        [BurstCompile]
         private struct JobUpdateConeWithExtendWithClip : IJobChunk
         {
             [WriteOnly] public BufferTypeHandle<BufferSightCone> HandleBufferCone;
@@ -190,11 +157,10 @@ namespace Perception
                     foreach (var source in CommonHandles.Sources)
                     {
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
-                        var (anglesCos, radiusSquared) = IsPerceived(in source, in bufferPerceive)
-                            ? (extend.AnglesCos, extend.RadiusSquared)
-                            : (cone.AnglesCos, cone.RadiusSquared);
 
-                        if (IsInsideCone(in position.Receiver, in sourcePosition, in transform, in anglesCos, radiusSquared, clip.RadiusSquared))
+                        if (bufferPerceive.Contains(in source)
+                                ? extend.IsInside(in position.Receiver, in sourcePosition, in transform, clip.RadiusSquared)
+                                : cone.IsInside(in position.Receiver, in sourcePosition, in transform, clip.RadiusSquared))
                         {
                             bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
                         }
@@ -234,11 +200,10 @@ namespace Perception
                     foreach (var source in CommonHandles.Sources)
                     {
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
-                        var (anglesCos, radiusSquared) = IsPerceived(in source, in bufferPerceive)
-                            ? (extend.AnglesCos, extend.RadiusSquared)
-                            : (cone.AnglesCos, cone.RadiusSquared);
 
-                        if (IsInsideCone(in position.Receiver, in sourcePosition, in transform, in anglesCos, radiusSquared))
+                        if (bufferPerceive.Contains(in source)
+                                ? extend.IsInside(in position.Receiver, in sourcePosition, in transform)
+                                : cone.IsInside(in position.Receiver, in sourcePosition, in transform))
                         {
                             bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
                         }
@@ -276,7 +241,7 @@ namespace Perception
                     {
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
 
-                        if (IsInsideCone(in position.Receiver, in sourcePosition, in transform, in cone.AnglesCos, cone.RadiusSquared, clip.RadiusSquared))
+                        if (cone.IsInside(in position.Receiver, in sourcePosition, in transform, clip.RadiusSquared))
                         {
                             bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
                         }
@@ -308,7 +273,7 @@ namespace Perception
                     {
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
 
-                        if (IsInsideCone(in position.Receiver, in sourcePosition, in transform, in cone.AnglesCos, cone.RadiusSquared))
+                        if (cone.IsInside(in position.Receiver, in sourcePosition, in transform))
                         {
                             bufferCone.Add(new BufferSightCone { Position = sourcePosition, Source = source });
                         }
