@@ -192,7 +192,7 @@ namespace Perception
         public static bool ProcessHit(in Entity hit, in BufferSightCone cone,
             ref DynamicBuffer<BufferSightPerceive> bufferPerceive, ref BufferLookup<BufferSightChild> buffersChild)
         {
-            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && IsChild(hit, in sourceBufferChild)))
+            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && sourceBufferChild.Contains(in hit)))
             {
                 bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
                 return true;
@@ -205,78 +205,14 @@ namespace Perception
         public static bool ProcessHit(in Entity hit, in BufferSightCone cone,
             ref DynamicBuffer<BufferSightPerceive> bufferPerceive, ref DynamicBuffer<BufferSightMemory> bufferMemory, ref BufferLookup<BufferSightChild> buffersChild)
         {
-            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && IsChild(hit, in sourceBufferChild)))
+            if (hit == cone.Source || (buffersChild.TryGetBuffer(cone.Source, out var sourceBufferChild) && sourceBufferChild.Contains(in hit)))
             {
                 bufferPerceive.Add(new BufferSightPerceive { Position = cone.Position, Source = cone.Source });
-                RemoveFromMemory(in cone.Source, ref bufferMemory);
+                bufferMemory.Remove(in cone.Source);
                 return true;
             }
 
             return false;
-        }
-
-        [BurstCompile]
-        public static void PerceiveToMemory(
-            ref DynamicBuffer<BufferSightPerceive> bufferPerceive, int perceiveLength, ref DynamicBuffer<BufferSightMemory> bufferMemory, float memoryTime)
-        {
-            if (perceiveLength <= 0)
-            {
-                return;
-            }
-
-            for (var j = 0; j < perceiveLength; j++)
-            {
-                var perceive = bufferPerceive[j];
-                bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memoryTime });
-            }
-
-            bufferPerceive.RemoveRange(0, perceiveLength);
-        }
-
-        [BurstCompile]
-        public static bool IsChild(in Entity entity, in DynamicBuffer<BufferSightChild> bufferChild)
-        {
-            foreach (var child in bufferChild)
-            {
-                if (child.Value == entity)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        [BurstCompile]
-        public static bool IsPerceived(in Entity entity, in DynamicBuffer<BufferSightPerceive> bufferPerceive, int length, out int index, out BufferSightPerceive perceive)
-        {
-            for (var i = 0; i < length; i++)
-            {
-                perceive = bufferPerceive[i];
-
-                if (perceive.Source == entity)
-                {
-                    index = i;
-                    return true;
-                }
-            }
-
-            index = -1;
-            perceive = default;
-            return false;
-        }
-
-        [BurstCompile]
-        public static void RemoveFromMemory(in Entity entity, ref DynamicBuffer<BufferSightMemory> bufferMemory)
-        {
-            for (var i = 0; i < bufferMemory.Length; i++)
-            {
-                if (bufferMemory[i].Source == entity)
-                {
-                    bufferMemory.RemoveAtSwapBack(i);
-                    return;
-                }
-            }
         }
 
         [BurstCompile]
@@ -314,13 +250,11 @@ namespace Perception
 
                     foreach (var cone in bufferCone)
                     {
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
+                        var isPerceived = bufferPerceive.Contains(in cone.Source, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
-                            perceiveLength--;
-                            bufferPerceive[index] = bufferPerceive[perceiveLength];
-                            bufferPerceive.RemoveAtSwapBack(perceiveLength);
+                            bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
                         CastRay(in receiver, in position.Receiver, in bufferChild,
@@ -331,7 +265,7 @@ namespace Perception
                         }
                     }
 
-                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
+                    bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -368,13 +302,11 @@ namespace Perception
 
                     foreach (var cone in bufferCone)
                     {
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
+                        var isPerceived = bufferPerceive.Contains(in cone.Source, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
-                            perceiveLength--;
-                            bufferPerceive[index] = bufferPerceive[perceiveLength];
-                            bufferPerceive.RemoveAtSwapBack(perceiveLength);
+                            bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
                         CastRay(in receiver, in position.Receiver, in bufferChild, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
@@ -384,7 +316,7 @@ namespace Perception
                         }
                     }
 
-                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
+                    bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -421,13 +353,11 @@ namespace Perception
 
                     foreach (var cone in bufferCone)
                     {
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
+                        var isPerceived = bufferPerceive.Contains(in cone.Source, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
-                            perceiveLength--;
-                            bufferPerceive[index] = bufferPerceive[perceiveLength];
-                            bufferPerceive.RemoveAtSwapBack(perceiveLength);
+                            bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
                         CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit, clip.RadiusSquared);
@@ -437,7 +367,7 @@ namespace Perception
                         }
                     }
 
-                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
+                    bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
@@ -509,13 +439,11 @@ namespace Perception
 
                     foreach (var cone in bufferCone)
                     {
-                        var isPerceived = IsPerceived(in cone.Source, in bufferPerceive, perceiveLength, out var index, out var perceive);
+                        var isPerceived = bufferPerceive.Contains(in cone.Source, perceiveLength, out var index, out var perceive);
 
                         if (isPerceived)
                         {
-                            perceiveLength--;
-                            bufferPerceive[index] = bufferPerceive[perceiveLength];
-                            bufferPerceive.RemoveAtSwapBack(perceiveLength);
+                            bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
                         CastRay(in receiver, in position.Receiver, in cone.Position, in filter.Value, ref CommonHandles.CollisionWorld, out var hit);
@@ -525,7 +453,7 @@ namespace Perception
                         }
                     }
 
-                    PerceiveToMemory(ref bufferPerceive, perceiveLength, ref bufferMemory, memory.Time);
+                    bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memory.Time);
                 }
             }
         }
