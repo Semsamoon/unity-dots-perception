@@ -71,20 +71,6 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        public static bool IsMemorized(in Entity entity, in DynamicBuffer<BufferSightMemory> bufferMemory)
-        {
-            foreach (var memory in bufferMemory)
-            {
-                if (memory.Source == entity)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        [BurstCompile]
         private partial struct JobDebugReceiverWithExtendWithClip : IJobEntity
         {
             [BurstCompile]
@@ -174,8 +160,7 @@ namespace Perception.Editor
 
                 foreach (var cone in bufferCone)
                 {
-                    if (!SystemSightPerceiveSingle.IsPerceived(in cone.Source, in bufferPerceive, bufferPerceive.Length, out _, out _)
-                        && !IsMemorized(cone.Source, bufferMemory))
+                    if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length) && !bufferMemory.Contains(in cone.Source))
                     {
                         Debug.DrawLine(position.Receiver, cone.Position, Color.red);
                         DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
@@ -198,7 +183,7 @@ namespace Perception.Editor
 
                 foreach (var cone in bufferCone)
                 {
-                    if (!SystemSightPerceiveSingle.IsPerceived(in cone.Source, in bufferPerceive, bufferPerceive.Length, out _, out _))
+                    if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length))
                     {
                         Debug.DrawLine(position.Receiver, cone.Position, Color.red);
                         DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
