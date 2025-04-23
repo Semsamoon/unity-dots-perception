@@ -3,7 +3,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace Perception.Editor
 {
@@ -24,6 +23,13 @@ namespace Perception.Editor
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            state.RequireForUpdate<ComponentSightDebug>();
+
+            if (!SystemAPI.HasSingleton<ComponentSightDebug>())
+            {
+                state.EntityManager.CreateSingleton(ComponentSightDebug.Default);
+            }
+
             _queryWithoutDebug = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithAbsent<TagSightDebug>().Build();
 
             _queryWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
@@ -62,17 +68,21 @@ namespace Perception.Editor
 
             _lookupPosition.Update(ref state);
 
-            var jobHandle = new JobDebugReceiverWithExtendWithClip().ScheduleParallel(_queryWithExtendWithClip, state.Dependency);
-            jobHandle = new JobDebugReceiverWithExtend().ScheduleParallel(_queryWithExtend, jobHandle);
-            jobHandle = new JobDebugReceiverWithClip().ScheduleParallel(_queryWithClip, jobHandle);
-            jobHandle = new JobDebugReceiver().ScheduleParallel(_query, jobHandle);
-            jobHandle = new JobDebugSourceWithMemory { LookupPosition = _lookupPosition, }.ScheduleParallel(_queryPerceiveWithMemory, jobHandle);
-            state.Dependency = new JobDebugSource().ScheduleParallel(_queryPerceive, jobHandle);
+            ref readonly var debug = ref SystemAPI.GetSingletonRW<ComponentSightDebug>().ValueRO;
+
+            var jobHandle = new JobDebugReceiverWithExtendWithClip { Debug = debug }.ScheduleParallel(_queryWithExtendWithClip, state.Dependency);
+            jobHandle = new JobDebugReceiverWithExtend { Debug = debug }.ScheduleParallel(_queryWithExtend, jobHandle);
+            jobHandle = new JobDebugReceiverWithClip { Debug = debug }.ScheduleParallel(_queryWithClip, jobHandle);
+            jobHandle = new JobDebugReceiver { Debug = debug }.ScheduleParallel(_query, jobHandle);
+            jobHandle = new JobDebugSourceWithMemory { Debug = debug, LookupPosition = _lookupPosition, }.ScheduleParallel(_queryPerceiveWithMemory, jobHandle);
+            state.Dependency = new JobDebugSource { Debug = debug }.ScheduleParallel(_queryPerceive, jobHandle);
         }
 
         [BurstCompile]
         private partial struct JobDebugReceiverWithExtendWithClip : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [BurstCompile]
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform,
                 in ComponentSightExtend extend, in ComponentSightClip clip)
@@ -83,15 +93,17 @@ namespace Perception.Editor
                 var extendAngles = math.acos(extend.AnglesCos);
                 var clipRadius = math.sqrt(clip.RadiusSquared);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, extendRadius, extendAngles, Color.yellow);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Color.green);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, extendAngles, Color.gray);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, extendRadius, extendAngles, Debug.ColorReceiverExtend);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Debug.ColorReceiverCone);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, extendAngles, Debug.ColorReceiverClip);
             }
         }
 
         [BurstCompile]
         private partial struct JobDebugReceiverWithExtend : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [BurstCompile]
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightExtend extend)
             {
@@ -100,14 +112,16 @@ namespace Perception.Editor
                 var extendRadius = math.sqrt(extend.RadiusSquared);
                 var extendAngles = math.acos(extend.AnglesCos);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendRadius, extendAngles, Color.yellow);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendRadius, extendAngles, Debug.ColorReceiverExtend);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Debug.ColorReceiverCone);
             }
         }
 
         [BurstCompile]
         private partial struct JobDebugReceiverWithClip : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [BurstCompile]
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightClip clip)
             {
@@ -115,27 +129,31 @@ namespace Perception.Editor
                 var angles = math.acos(cone.AnglesCos);
                 var clipRadius = math.sqrt(clip.RadiusSquared);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Color.green);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, angles, Color.gray);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Debug.ColorReceiverCone);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, angles, Debug.ColorReceiverClip);
             }
         }
 
         [BurstCompile]
         private partial struct JobDebugReceiver : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [BurstCompile]
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform)
             {
                 var radius = math.sqrt(cone.RadiusSquared);
                 var angles = math.acos(cone.AnglesCos);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Color.green);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Debug.ColorReceiverCone);
             }
         }
 
         [BurstCompile]
         private partial struct JobDebugSourceWithMemory : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [ReadOnly] public ComponentLookup<ComponentSightPosition> LookupPosition;
 
             [BurstCompile]
@@ -144,26 +162,26 @@ namespace Perception.Editor
             {
                 foreach (var perceive in bufferPerceive)
                 {
-                    Debug.DrawLine(position.Receiver, perceive.Position, Color.green);
-                    DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
+                    UnityEngine.Debug.DrawLine(position.Receiver, perceive.Position, Debug.ColorSourcePerceived);
+                    DebugAdvanced.DrawOctahedron(perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourcePerceived);
                 }
 
                 foreach (var memory in bufferMemory)
                 {
                     var sourcePosition = LookupPosition[memory.Source].Source;
 
-                    Debug.DrawLine(position.Receiver, memory.Position, Color.yellow);
-                    Debug.DrawLine(sourcePosition, memory.Position, Color.yellow);
-                    DebugAdvanced.DrawOctahedron(memory.Position, new float3(0.125f, 0.25f, 0.125f), Color.yellow);
-                    DebugAdvanced.DrawOctahedron(sourcePosition, new float3(0.25f, 0.5f, 0.25f), Color.yellow);
+                    UnityEngine.Debug.DrawLine(position.Receiver, memory.Position, Debug.ColorSourceMemorized);
+                    UnityEngine.Debug.DrawLine(sourcePosition, memory.Position, Debug.ColorSourceMemorized);
+                    DebugAdvanced.DrawOctahedron(memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, Debug.ColorSourceMemorized);
+                    DebugAdvanced.DrawOctahedron(sourcePosition, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceMemorized);
                 }
 
                 foreach (var cone in bufferCone)
                 {
                     if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length) && !bufferMemory.Contains(in cone.Source))
                     {
-                        Debug.DrawLine(position.Receiver, cone.Position, Color.red);
-                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
+                        UnityEngine.Debug.DrawLine(position.Receiver, cone.Position, Debug.ColorSourceHidden);
+                        DebugAdvanced.DrawOctahedron(cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceHidden);
                     }
                 }
             }
@@ -172,21 +190,23 @@ namespace Perception.Editor
         [BurstCompile]
         private partial struct JobDebugSource : IJobEntity
         {
+            [ReadOnly] public ComponentSightDebug Debug;
+
             [BurstCompile]
             public void Execute(in DynamicBuffer<BufferSightPerceive> bufferPerceive, in DynamicBuffer<BufferSightCone> bufferCone, in ComponentSightPosition position)
             {
                 foreach (var perceive in bufferPerceive)
                 {
-                    Debug.DrawLine(position.Receiver, perceive.Position, Color.green);
-                    DebugAdvanced.DrawOctahedron(perceive.Position, new float3(0.25f, 0.5f, 0.25f), Color.green);
+                    UnityEngine.Debug.DrawLine(position.Receiver, perceive.Position, Debug.ColorSourcePerceived);
+                    DebugAdvanced.DrawOctahedron(perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourcePerceived);
                 }
 
                 foreach (var cone in bufferCone)
                 {
                     if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length))
                     {
-                        Debug.DrawLine(position.Receiver, cone.Position, Color.red);
-                        DebugAdvanced.DrawOctahedron(cone.Position, new float3(0.25f, 0.5f, 0.25f), Color.red);
+                        UnityEngine.Debug.DrawLine(position.Receiver, cone.Position, Debug.ColorSourceHidden);
+                        DebugAdvanced.DrawOctahedron(cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceHidden);
                     }
                 }
             }
