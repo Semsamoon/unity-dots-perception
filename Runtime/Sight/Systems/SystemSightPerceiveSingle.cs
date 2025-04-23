@@ -648,45 +648,6 @@ namespace Perception
         }
     }
 
-    public struct CollectorClosestIgnoreEntityAndChild : ICollector<RaycastHit>
-    {
-        private readonly Entity _entity;
-        private readonly DynamicBuffer<BufferSightChild> _bufferChild;
-
-        public bool EarlyOutOnFirstHit => false;
-        public float MaxFraction { get; private set; }
-        public int NumHits => Hit.Entity == Entity.Null ? 0 : 1;
-        public RaycastHit Hit { get; private set; }
-
-        public CollectorClosestIgnoreEntityAndChild(Entity entity, DynamicBuffer<BufferSightChild> bufferChild)
-        {
-            _entity = entity;
-            _bufferChild = bufferChild;
-            MaxFraction = 1;
-            Hit = default;
-        }
-
-        public bool AddHit(RaycastHit hit)
-        {
-            if (hit.Entity == _entity)
-            {
-                return false;
-            }
-
-            foreach (var child in _bufferChild)
-            {
-                if (hit.Entity == child.Value)
-                {
-                    return false;
-                }
-            }
-
-            MaxFraction = hit.Fraction;
-            Hit = hit;
-            return true;
-        }
-    }
-
     public struct CollectorClosestIgnoreEntityWithClip : ICollector<RaycastHit>
     {
         private readonly Entity _entity;
@@ -708,35 +669,6 @@ namespace Perception
         public bool AddHit(RaycastHit hit)
         {
             if (hit.Entity == _entity || hit.Fraction < _clip)
-            {
-                return false;
-            }
-
-            MaxFraction = hit.Fraction;
-            Hit = hit;
-            return true;
-        }
-    }
-
-    public struct CollectorClosestIgnoreEntity : ICollector<RaycastHit>
-    {
-        private readonly Entity _entity;
-
-        public bool EarlyOutOnFirstHit => false;
-        public float MaxFraction { get; private set; }
-        public int NumHits => Hit.Entity == Entity.Null ? 0 : 1;
-        public RaycastHit Hit { get; private set; }
-
-        public CollectorClosestIgnoreEntity(Entity entity)
-        {
-            _entity = entity;
-            MaxFraction = 1;
-            Hit = default;
-        }
-
-        public bool AddHit(RaycastHit hit)
-        {
-            if (hit.Entity == _entity)
             {
                 return false;
             }
