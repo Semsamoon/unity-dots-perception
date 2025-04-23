@@ -150,7 +150,7 @@ namespace Perception
                 var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
                 var position = transform.TransformPoint(_receiverOffset);
 
-                DrawCone(position, transform.rotation, 0, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
+                DrawCone(position, transform.rotation, _clipRadius, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
                 DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
                 DrawCone(position, transform.rotation, 0, _clipRadius, extendHalfAngles, Color.gray);
             }
@@ -190,7 +190,13 @@ namespace Perception
             DebugAdvanced.DrawCurve(position + verticalsOffset, rotation, radiusY, halfAngleX * 2, color, sparsity);
             DebugAdvanced.DrawCurve(position - verticalsOffset, rotation, radiusY, halfAngleX * 2, color, sparsity);
 
-            var segments = (int)(halfAngleX * radius / 1000) + (halfAngleX > 1 ? 2 : 1);
+            if (halfAngleY > 0.5f)
+            {
+                DebugAdvanced.DrawCurve(position, rotation, radius, halfAngleX * 2, color, sparsity);
+            }
+
+            var segments = (int)(halfAngleX * radius / 1000) + (int)halfAngleX + 1;
+            var segmentsEulerAngles = new float3x2(new float3(0, halfAngleY, 0), new float3(0, -halfAngleY, 0));
 
             for (var i = 0; i <= segments; i++)
             {
@@ -198,6 +204,14 @@ namespace Perception
                 var quaternion = math.mul(rotation, Unity.Mathematics.quaternion.Euler(0, angle, math.PIHALF));
 
                 DebugAdvanced.DrawCurve(position, quaternion, radius, halfAngleY * 2, color, sparsity);
+
+                for (var j = 0; j < 2; j++)
+                {
+                    var end = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, radius)));
+                    var start = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, clip)));
+
+                    Debug.DrawLine(position + start, position + end, color);
+                }
             }
         }
 #endif
