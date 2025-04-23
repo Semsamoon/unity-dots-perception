@@ -34,6 +34,8 @@ namespace Perception
 
         private BufferLookup<BufferSightChild> _lookupBufferChild;
 
+        private int2 _chunkIndexRange;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -106,51 +108,75 @@ namespace Perception
                 CollisionWorld = physics.CollisionWorld,
             };
 
+            var ranges = new NativeArray<int2>(8, Allocator.Temp);
+
+            if (SystemAPI.TryGetSingleton(out ComponentSightLimit limit) && limit.ChunksAmountPerceiveOffset > 0)
+            {
+                var amounts = new NativeArray<int>(ranges.Length, Allocator.Temp);
+                amounts[0] = _queryWithMemoryWithChildWithClip.CalculateChunkCountWithoutFiltering();
+                amounts[1] = _queryWithMemoryWithChild.CalculateChunkCountWithoutFiltering();
+                amounts[2] = _queryWithMemoryWithClip.CalculateChunkCountWithoutFiltering();
+                amounts[3] = _queryWithChildWithClip.CalculateChunkCountWithoutFiltering();
+                amounts[4] = _queryWithMemory.CalculateChunkCountWithoutFiltering();
+                amounts[5] = _queryWithChild.CalculateChunkCountWithoutFiltering();
+                amounts[6] = _queryWithClip.CalculateChunkCountWithoutFiltering();
+                amounts[7] = _query.CalculateChunkCountWithoutFiltering();
+
+                ComponentSightLimit.CalculateRanges(limit.ChunksAmountPerceiveOffset, amounts.AsReadOnly(), ref ranges, ref _chunkIndexRange);
+            }
+            else
+            {
+                for (var i = 0; i < ranges.Length; i++)
+                {
+                    ranges[i] = new int2(0, int.MaxValue);
+                }
+            }
+
             var jobHandle = new JobUpdatePerceiveWithMemoryWithChildWithClip
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[0],
                 HandleBufferMemory = _handleBufferMemory, HandleBufferChild = _handleBufferChild, HandleMemory = _handleMemory, HandleClip = _handleClip,
             }.ScheduleParallel(_queryWithMemoryWithChildWithClip, state.Dependency);
 
             jobHandle = new JobUpdatePerceiveWithMemoryWithChild
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[1],
                 HandleBufferMemory = _handleBufferMemory, HandleBufferChild = _handleBufferChild, HandleMemory = _handleMemory,
             }.ScheduleParallel(_queryWithMemoryWithChild, jobHandle);
 
             jobHandle = new JobUpdatePerceiveWithMemoryWithClip
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[2],
                 HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory, HandleClip = _handleClip,
             }.ScheduleParallel(_queryWithMemoryWithClip, jobHandle);
 
             jobHandle = new JobUpdatePerceiveWithChildWithClip
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[3],
                 HandleBufferChild = _handleBufferChild, HandleClip = _handleClip,
             }.ScheduleParallel(_queryWithChildWithClip, jobHandle);
 
             jobHandle = new JobUpdatePerceiveWithMemory
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[4],
                 HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory,
             }.ScheduleParallel(_queryWithMemory, jobHandle);
 
             jobHandle = new JobUpdatePerceiveWithChild
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[5],
                 HandleBufferChild = _handleBufferChild,
             }.ScheduleParallel(_queryWithChild, jobHandle);
 
             jobHandle = new JobUpdatePerceiveWithClip
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[6],
                 HandleClip = _handleClip,
             }.ScheduleParallel(_queryWithClip, jobHandle);
 
             state.Dependency = new JobUpdatePerceive
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[7],
             }.ScheduleParallel(_query, jobHandle);
         }
 
@@ -159,6 +185,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
@@ -168,6 +195,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -236,6 +268,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
@@ -244,6 +277,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -310,6 +348,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
@@ -318,6 +357,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -384,6 +428,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
@@ -391,6 +436,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -440,6 +490,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public BufferTypeHandle<BufferSightMemory> HandleBufferMemory;
             [ReadOnly] public ComponentTypeHandle<ComponentSightMemory> HandleMemory;
@@ -447,6 +498,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -509,12 +565,18 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [ReadOnly] public BufferTypeHandle<BufferSightChild> HandleBufferChild;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -562,12 +624,18 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [ReadOnly] public ComponentTypeHandle<ComponentSightClip> HandleClip;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -615,10 +683,16 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferSightPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
