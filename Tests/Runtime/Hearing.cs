@@ -80,6 +80,35 @@ namespace Perception.Tests
             }
         }
 
+        [UnityTest]
+        public IEnumerator Perceive()
+        {
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var receiver = new EntityBuilder(entityManager).Receiver().Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, Time.fixedDeltaTime)).Source().Sphere(1, _awaitPhysicsTimeSquared * 2).Build();
+
+            try
+            {
+                yield return null;
+                Assert.True(entityManager.HasBuffer<BufferHearingPerceive>(receiver));
+                Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
+
+                yield return _awaitPhysics;
+                Assert.AreEqual(1, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
+                Assert.AreEqual(source, entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Source);
+                Assert.AreEqual(new float3(0, 0, Time.fixedDeltaTime), entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Position);
+
+                entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
+                yield return _awaitPhysics;
+                Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
+            }
+            finally
+            {
+                entityManager.DestroyEntity(receiver);
+                entityManager.DestroyEntity(source);
+            }
+        }
+
         private struct EntityBuilder
         {
             private EntityManager _entityManager;
