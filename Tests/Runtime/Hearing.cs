@@ -49,7 +49,7 @@ namespace Perception.Tests
         public IEnumerator Sphere()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var source = new EntityBuilder(entityManager).Source().Sphere(1, _awaitPhysicsTimeSquared).Build();
+            var source = new EntityBuilder(entityManager).Source(1, _awaitPhysicsTimeSquared).Build();
 
             try
             {
@@ -72,7 +72,7 @@ namespace Perception.Tests
                 yield return _awaitPhysics;
                 Assert.False(entityManager.Exists(source));
 
-                source = new EntityBuilder(entityManager).Source().Sphere(1, _awaitPhysicsTimeSquared).Build();
+                source = new EntityBuilder(entityManager).Source(1, _awaitPhysicsTimeSquared).Build();
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, Time.fixedDeltaTime)).Source().Sphere(1, _awaitPhysicsTimeSquared * 2).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, Time.fixedDeltaTime)).Source(1, _awaitPhysicsTimeSquared * 2).Build();
 
             try
             {
@@ -127,21 +127,16 @@ namespace Perception.Tests
                 return this;
             }
 
-            public EntityBuilder Source()
+            public EntityBuilder Source(float speed = 0, float rangeSquared = 0)
             {
                 _entityManager.AddComponentData(_entity, new TagHearingSource());
+                _entityManager.AddComponentData(_entity, new ComponentHearingSphere { Speed = speed, RangeSquared = rangeSquared });
                 return this;
             }
 
             public EntityBuilder Offset(float3 offset = default)
             {
                 _entityManager.AddComponentData(_entity, new ComponentHearingOffset { Value = offset });
-                return this;
-            }
-
-            public EntityBuilder Sphere(float speed, float rangeSquared)
-            {
-                _entityManager.AddComponentData(_entity, new ComponentHearingSphere { Speed = speed, RangeSquared = rangeSquared });
                 return this;
             }
 
