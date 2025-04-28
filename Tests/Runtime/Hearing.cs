@@ -3,12 +3,16 @@ using NUnit.Framework;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 using UnityEngine.TestTools;
 
 namespace Perception.Tests
 {
     public sealed class Hearing
     {
+        private readonly float _awaitPhysicsTimeSquared = Time.fixedDeltaTime * Time.fixedDeltaTime;
+        private readonly WaitForSeconds _awaitPhysics = new(Time.fixedDeltaTime * 1.2f);
+
         [UnityTest]
         public IEnumerator Position()
         {
@@ -41,6 +45,41 @@ namespace Perception.Tests
             }
         }
 
+        [UnityTest]
+        public IEnumerator Sphere()
+        {
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var source = new EntityBuilder(entityManager).Source().Sphere(1, _awaitPhysicsTimeSquared).Build();
+
+            try
+            {
+                yield return null;
+                Assert.True(entityManager.HasComponent<ComponentHearingRadius>(source));
+                Assert.Less(0, entityManager.GetComponentData<ComponentHearingRadius>(source).CurrentSquared);
+                Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).PreviousSquared);
+                Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalCurrentSquared);
+                Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalPreviousSquared);
+
+                yield return _awaitPhysics;
+                Assert.AreEqual(_awaitPhysicsTimeSquared, entityManager.GetComponentData<ComponentHearingRadius>(source).CurrentSquared);
+                Assert.AreEqual(_awaitPhysicsTimeSquared, entityManager.GetComponentData<ComponentHearingRadius>(source).PreviousSquared);
+
+                entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
+                yield return null;
+                Assert.Less(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalCurrentSquared);
+                Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalPreviousSquared);
+
+                yield return _awaitPhysics;
+                Assert.False(entityManager.Exists(source));
+
+                source = new EntityBuilder(entityManager).Source().Sphere(1, _awaitPhysicsTimeSquared).Build();
+            }
+            finally
+            {
+                entityManager.DestroyEntity(source);
+            }
+        }
+
         private struct EntityBuilder
         {
             private EntityManager _entityManager;
@@ -68,6 +107,12 @@ namespace Perception.Tests
             public EntityBuilder Offset(float3 offset = default)
             {
                 _entityManager.AddComponentData(_entity, new ComponentHearingOffset { Value = offset });
+                return this;
+            }
+
+            public EntityBuilder Sphere(float speed, float rangeSquared)
+            {
+                _entityManager.AddComponentData(_entity, new ComponentHearingSphere { Speed = speed, RangeSquared = rangeSquared });
                 return this;
             }
 
