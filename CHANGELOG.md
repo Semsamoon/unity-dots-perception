@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2025-04-29
+
+### Added
+
+- Hearing memory component and memory buffer with XML documentation and extensions.
+- Hearing memory system and usage of hearing memory component and memory buffer in perceive system.
+- Test for hearing memory system.
+
+### Fixed
+
+- Correct order of systems' updates.
+
+## [0.4.2] - 2025-04-28
+
+### Added
+
+- Hearing perceive buffer with XML documentation.
+- Hearing perceive sources system.
+- Tests for hearing perceive sources system.
+
+### Changed
+
+- Merge source creation and sphere setting in entity builder in tests.
+
+## [0.4.1] - 2025-04-28
+
+### Added
+
+- Hearing sphere, radius and duration components with XML documentation.
+- Hearing sphere of wave propagation system.
+- Tests for hearing sphere of wave propagation system.
+
+## [0.4.0] - 2025-04-27
+
+### Added
+
+- Hearing receiver and source tags with XML documentation.
+- Hearing offset and position components with XML documentation.
+- Hearing position system.
+- Tests for hearing position system.
+
 ## [0.3.5] - 2025-04-23
 
 ### Added
