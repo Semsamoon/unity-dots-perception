@@ -4,6 +4,7 @@ using Unity.Mathematics;
 
 namespace Perception
 {
+    [UpdateAfter(typeof(SystemHearingPosition))]
     public partial struct SystemHearingSphere : ISystem
     {
         public void OnCreate(ref SystemState state)
