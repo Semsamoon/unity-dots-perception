@@ -109,6 +109,45 @@ namespace Perception.Tests
             }
         }
 
+        [UnityTest]
+        public IEnumerator Memory()
+        {
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var receiver = new EntityBuilder(entityManager).Receiver().Memory(Time.fixedDeltaTime * 1.2f).Build();
+            var source = new EntityBuilder(entityManager).Source(0, 1).Duration().Build();
+
+            try
+            {
+                yield return null;
+                Assert.True(entityManager.HasBuffer<BufferHearingMemory>(receiver));
+                Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
+
+                entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 1)) });
+                yield return null;
+                Assert.AreEqual(1, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
+                Assert.AreEqual(source, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Source);
+                Assert.AreEqual(float3.zero, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Position);
+                Assert.AreEqual(Time.fixedDeltaTime * 1.2f, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
+
+                yield return null;
+                Assert.Greater(Time.fixedDeltaTime * 1.2f, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
+
+                entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.identity });
+                yield return null;
+                Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
+
+                entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 1)) });
+                yield return _awaitPhysics;
+                yield return null;
+                Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
+            }
+            finally
+            {
+                entityManager.DestroyEntity(receiver);
+                entityManager.DestroyEntity(source);
+            }
+        }
+
         private struct EntityBuilder
         {
             private EntityManager _entityManager;
@@ -137,6 +176,18 @@ namespace Perception.Tests
             public EntityBuilder Offset(float3 offset = default)
             {
                 _entityManager.AddComponentData(_entity, new ComponentHearingOffset { Value = offset });
+                return this;
+            }
+
+            public EntityBuilder Duration(float duration = 0)
+            {
+                _entityManager.AddComponentData(_entity, new ComponentHearingDuration { Time = duration });
+                return this;
+            }
+
+            public EntityBuilder Memory(float time = 0)
+            {
+                _entityManager.AddComponentData(_entity, new ComponentHearingMemory { Time = time });
                 return this;
             }
 
