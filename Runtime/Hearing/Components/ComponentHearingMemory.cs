@@ -2,6 +2,9 @@
 
 namespace Perception
 {
+    /// <summary>
+    /// Adds memory to the receiver.
+    /// </summary>
     public struct ComponentHearingMemory : IComponentData
     {
         public float Time;
