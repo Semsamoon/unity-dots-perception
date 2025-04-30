@@ -22,6 +22,13 @@ namespace Perception
             }
         }
 
+        public static void DrawSphere(float3 center, quaternion rotation, float radius, Color color, float sparsity = 1000)
+        {
+            DrawCurve(center, rotation, radius, math.PI2, color, sparsity);
+            DrawCurve(center, math.mul(rotation, quaternion.RotateX(math.PIHALF)), radius, math.PI2, color, sparsity);
+            DrawCurve(center, math.mul(rotation, quaternion.RotateZ(math.PIHALF)), radius, math.PI2, color, sparsity);
+        }
+
         public static void DrawOctahedron(float3 center, float3 size, Color color)
         {
             var verticalPoint = new float3(0, size.y / 2, 0);
