@@ -5,6 +5,7 @@ using Unity.Transforms;
 
 namespace Perception
 {
+    [UpdateInGroup(typeof(HearingSystemGroup))]
     public partial struct SystemHearingPosition : ISystem
     {
         public void OnCreate(ref SystemState state)

@@ -3,6 +3,7 @@ using Unity.Entities;
 
 namespace Perception
 {
+    [UpdateInGroup(typeof(HearingSystemGroup))]
     public partial struct SystemHearingMemory : ISystem
     {
         public void OnCreate(ref SystemState state)
