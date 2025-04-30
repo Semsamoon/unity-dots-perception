@@ -8,16 +8,20 @@ namespace Perception
     {
         [SerializeField] protected bool _isReceiver;
 
+        [Header("Receiver Additions")]
         [SerializeField] protected float _memoryTime;
 
         [Space]
         [SerializeField] protected bool _isSource;
 
+        [Header("Source Requirements")]
         [SerializeField] protected float _speed;
         [SerializeField] protected float _maxRange;
 
+        [Header("Source Modifiers")]
         [SerializeField] protected float _duration;
 
+        [Header("Common Additions")]
         [SerializeField] protected float3 _offset;
 
         public class Baker : Baker<HearingSenseAuthoring>
