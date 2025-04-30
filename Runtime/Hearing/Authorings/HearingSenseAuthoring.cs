@@ -77,6 +77,29 @@ namespace Perception
 
             _duration = _duration is >= 0 or > -1 and < -0.5f ? math.max(0, _duration) : -1;
         }
+
+        protected virtual void OnDrawGizmosSelected()
+        {
+            if (Application.isPlaying)
+            {
+                return;
+            }
+
+            if (_isReceiver)
+            {
+                var transform = this.transform;
+                var position = transform.TransformPoint(_offset);
+                DebugAdvanced.DrawOctahedron(position, new float3(0.25f, 0.5f, 0.25f), Color.blue);
+            }
+
+            if (_isSource)
+            {
+                var transform = this.transform;
+                var position = transform.TransformPoint(_offset);
+                DebugAdvanced.DrawSphere(position, transform.rotation, math.max(0, _maxRange - _speed * math.max(0, _duration)), Color.red);
+                DebugAdvanced.DrawSphere(position, transform.rotation, _maxRange, Color.green);
+            }
+        }
 #endif
     }
 }
