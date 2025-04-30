@@ -16,11 +16,11 @@ namespace Perception
         [SerializeField] protected float _clipRadius;
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
-        [SerializeField] protected float3 _receiverOffset;
+        [SerializeField] protected float3[] _rayOffsets;
 
         [Header("Receiver Additional Settings")]
+        [SerializeField] protected float3 _receiverOffset;
         [SerializeField] protected float _memoryTime;
-        [SerializeField] protected float3[] _rayOffsets;
 
         [Space]
         [SerializeField] protected bool _isSource;
