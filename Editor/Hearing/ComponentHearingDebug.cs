@@ -4,6 +4,10 @@ using UnityEngine;
 
 namespace Perception.Editor
 {
+    /// <summary>
+    /// Specifies debug settings.
+    /// Must be a singleton.
+    /// </summary>
     public struct ComponentHearingDebug : IComponentData
     {
         public Color ColorSourceSphere;
