@@ -11,12 +11,12 @@ namespace Perception.Editor
     {
         private EntityQuery _queryWithoutDebug;
 
-        private EntityQuery _queryWithExtendWithClip;
-        private EntityQuery _queryWithExtend;
-        private EntityQuery _queryWithClip;
-        private EntityQuery _query;
-        private EntityQuery _queryPerceiveWithMemory;
-        private EntityQuery _queryPerceive;
+        private EntityQuery _queryConeWithExtendWithClip;
+        private EntityQuery _queryConeWithExtend;
+        private EntityQuery _queryConeWithClip;
+        private EntityQuery _queryCone;
+        private EntityQuery _queryPerceivedHiddenMemorized;
+        private EntityQuery _queryPerceivedHidden;
 
         private ComponentLookup<ComponentSightPosition> _lookupPosition;
 
@@ -32,17 +32,17 @@ namespace Perception.Editor
 
             _queryWithoutDebug = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithAbsent<TagSightDebug>().Build();
 
-            _queryWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryConeWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend, ComponentSightClip>().Build();
-            _queryWithExtend = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryConeWithExtend = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend>().WithNone<ComponentSightClip>().Build();
-            _queryWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryConeWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightClip>().WithNone<ComponentSightExtend>().Build();
-            _query = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryCone = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithNone<ComponentSightExtend, ComponentSightClip>().Build();
-            _queryPerceiveWithMemory = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryPerceivedHiddenMemorized = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightPosition>().WithAll<BufferSightMemory, ComponentSightMemory>().Build();
-            _queryPerceive = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
+            _queryPerceivedHidden = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightPosition>().WithNone<ComponentSightMemory>().Build();
 
             _lookupPosition = SystemAPI.GetComponentLookup<ComponentSightPosition>(isReadOnly: true);
@@ -70,16 +70,16 @@ namespace Perception.Editor
 
             ref readonly var debug = ref SystemAPI.GetSingletonRW<ComponentSightDebug>().ValueRO;
 
-            var jobHandle = new JobDebugReceiverWithExtendWithClip { Debug = debug }.ScheduleParallel(_queryWithExtendWithClip, state.Dependency);
-            jobHandle = new JobDebugReceiverWithExtend { Debug = debug }.ScheduleParallel(_queryWithExtend, jobHandle);
-            jobHandle = new JobDebugReceiverWithClip { Debug = debug }.ScheduleParallel(_queryWithClip, jobHandle);
-            jobHandle = new JobDebugReceiver { Debug = debug }.ScheduleParallel(_query, jobHandle);
-            jobHandle = new JobDebugSourceWithMemory { Debug = debug, LookupPosition = _lookupPosition, }.ScheduleParallel(_queryPerceiveWithMemory, jobHandle);
-            state.Dependency = new JobDebugSource { Debug = debug }.ScheduleParallel(_queryPerceive, jobHandle);
+            var jobHandle = new JobDebugConeWithExtendWithClip { Debug = debug }.ScheduleParallel(_queryConeWithExtendWithClip, state.Dependency);
+            jobHandle = new JobDebugConeWithExtend { Debug = debug }.ScheduleParallel(_queryConeWithExtend, jobHandle);
+            jobHandle = new JobDebugConeWithClip { Debug = debug }.ScheduleParallel(_queryConeWithClip, jobHandle);
+            jobHandle = new JobDebugCone { Debug = debug }.ScheduleParallel(_queryCone, jobHandle);
+            jobHandle = new JobDebugPerceivedHiddenMemorized { Debug = debug, LookupPosition = _lookupPosition }.ScheduleParallel(_queryPerceivedHiddenMemorized, jobHandle);
+            state.Dependency = new JobDebugPerceivedHidden { Debug = debug }.ScheduleParallel(_queryPerceivedHidden, jobHandle);
         }
 
         [BurstCompile]
-        private partial struct JobDebugReceiverWithExtendWithClip : IJobEntity
+        private partial struct JobDebugConeWithExtendWithClip : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
@@ -100,7 +100,7 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        private partial struct JobDebugReceiverWithExtend : IJobEntity
+        private partial struct JobDebugConeWithExtend : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
@@ -118,7 +118,7 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        private partial struct JobDebugReceiverWithClip : IJobEntity
+        private partial struct JobDebugConeWithClip : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
@@ -135,7 +135,7 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        private partial struct JobDebugReceiver : IJobEntity
+        private partial struct JobDebugCone : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
@@ -150,7 +150,7 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        private partial struct JobDebugSourceWithMemory : IJobEntity
+        private partial struct JobDebugPerceivedHiddenMemorized : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
@@ -190,7 +190,7 @@ namespace Perception.Editor
         }
 
         [BurstCompile]
-        private partial struct JobDebugSource : IJobEntity
+        private partial struct JobDebugPerceivedHidden : IJobEntity
         {
             [ReadOnly] public ComponentSightDebug Debug;
 
