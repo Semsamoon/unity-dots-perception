@@ -2,6 +2,7 @@
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Perception
 {
@@ -13,6 +14,8 @@ namespace Perception
         private EntityQuery _query;
 
         private BufferTypeHandle<BufferHearingMemory> _handleBufferMemory;
+
+        private int2 _chunkIndexRange;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -43,9 +46,26 @@ namespace Perception
 
             _handleBufferMemory.Update(ref state);
 
+            var ranges = new NativeArray<int2>(1, Allocator.Temp);
+
+            if (SystemAPI.TryGetSingleton(out ComponentHearingLimit limit) && limit.ChunksAmountMemory > 0)
+            {
+                var amounts = new NativeArray<int>(ranges.Length, Allocator.Temp);
+                amounts[0] = _query.CalculateChunkCountWithoutFiltering();
+
+                ComponentHearingLimit.CalculateRanges(limit.ChunksAmountMemory, amounts.AsReadOnly(), ref ranges, ref _chunkIndexRange);
+            }
+            else
+            {
+                for (var i = 0; i < ranges.Length; i++)
+                {
+                    ranges[i] = new int2(0, int.MaxValue);
+                }
+            }
+
             state.Dependency = new JobUpdateMemory
             {
-                HandleBufferMemory = _handleBufferMemory, DeltaTime = SystemAPI.Time.DeltaTime,
+                HandleBufferMemory = _handleBufferMemory, DeltaTime = SystemAPI.Time.DeltaTime, ChunkIndexRange = ranges[0],
             }.ScheduleParallel(_query, state.Dependency);
         }
 
@@ -54,10 +74,16 @@ namespace Perception
         {
             public BufferTypeHandle<BufferHearingMemory> HandleBufferMemory;
             [ReadOnly] public float DeltaTime;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
 
                 for (var i = 0; i < chunk.Count; i++)

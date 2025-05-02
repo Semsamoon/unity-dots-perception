@@ -25,6 +25,8 @@ namespace Perception
         private ComponentLookup<ComponentHearingPosition> _lookupPosition;
         private ComponentLookup<ComponentHearingRadius> _lookupRadius;
 
+        private int2 _chunkIndexRange;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -80,15 +82,33 @@ namespace Perception
                 LookupPosition = _lookupPosition, LookupRadius = _lookupRadius, Sources = sourcesReadOnly,
             };
 
+            var ranges = new NativeArray<int2>(2, Allocator.Temp);
+
+            if (SystemAPI.TryGetSingleton(out ComponentHearingLimit limit) && limit.ChunksAmountPerceive > 0)
+            {
+                var amounts = new NativeArray<int>(ranges.Length, Allocator.Temp);
+                amounts[0] = _queryWithMemory.CalculateChunkCountWithoutFiltering();
+                amounts[1] = _query.CalculateChunkCountWithoutFiltering();
+
+                ComponentHearingLimit.CalculateRanges(limit.ChunksAmountPerceive, amounts.AsReadOnly(), ref ranges, ref _chunkIndexRange);
+            }
+            else
+            {
+                for (var i = 0; i < ranges.Length; i++)
+                {
+                    ranges[i] = new int2(0, int.MaxValue);
+                }
+            }
+
             var jobHandle = new JobUpdatePerceiveWithMemory
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[0],
                 HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory,
             }.ScheduleParallel(_queryWithMemory, state.Dependency);
 
             jobHandle = new JobUpdatePerceive
             {
-                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles, ChunkIndexRange = ranges[0],
             }.ScheduleParallel(_query, jobHandle);
 
             state.Dependency = sources.Dispose(jobHandle);
@@ -99,6 +119,7 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferHearingPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public BufferTypeHandle<BufferHearingMemory> HandleBufferMemory;
             [ReadOnly] public ComponentTypeHandle<ComponentHearingMemory> HandleMemory;
@@ -106,6 +127,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 
@@ -158,10 +184,16 @@ namespace Perception
         {
             [WriteOnly] public BufferTypeHandle<BufferHearingPerceive> HandleBufferPerceive;
             [ReadOnly] public CommonHandles CommonHandles;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
                 CommonHandles.Get(in chunk, out var arrays);
 

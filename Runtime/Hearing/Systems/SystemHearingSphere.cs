@@ -2,6 +2,7 @@
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 namespace Perception
 {
@@ -18,6 +19,8 @@ namespace Perception
         private ComponentTypeHandle<ComponentHearingRadius> _handleRadius;
         private ComponentTypeHandle<ComponentHearingSphere> _handleSphere;
         private ComponentTypeHandle<ComponentHearingDuration> _handleDuration;
+
+        private int2 _chunkIndexRange;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -61,16 +64,33 @@ namespace Perception
 
             var commandsParallel = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>().CreateCommandBuffer(state.WorldUnmanaged).AsParallelWriter();
             var deltaTime = SystemAPI.Time.DeltaTime;
+            var ranges = new NativeArray<int2>(2, Allocator.Temp);
+
+            if (SystemAPI.TryGetSingleton(out ComponentHearingLimit limit) && limit.ChunksAmountSphere > 0)
+            {
+                var amounts = new NativeArray<int>(ranges.Length, Allocator.Temp);
+                amounts[0] = _queryWithDuration.CalculateChunkCountWithoutFiltering();
+                amounts[1] = _query.CalculateChunkCountWithoutFiltering();
+
+                ComponentHearingLimit.CalculateRanges(limit.ChunksAmountSphere, amounts.AsReadOnly(), ref ranges, ref _chunkIndexRange);
+            }
+            else
+            {
+                for (var i = 0; i < ranges.Length; i++)
+                {
+                    ranges[i] = new int2(0, int.MaxValue);
+                }
+            }
 
             var jobHandle = new JobUpdateSphereWithDuration
             {
-                HandleRadius = _handleRadius, HandleSphere = _handleSphere, DeltaTime = deltaTime,
+                HandleRadius = _handleRadius, HandleSphere = _handleSphere, DeltaTime = deltaTime, ChunkIndexRange = ranges[0],
                 Commands = commandsParallel, HandleDuration = _handleDuration, HandleEntity = _handleEntity,
             }.ScheduleParallel(_queryWithDuration, state.Dependency);
 
             state.Dependency = new JobUpdateSphere
             {
-                HandleRadius = _handleRadius, HandleSphere = _handleSphere, DeltaTime = deltaTime,
+                HandleRadius = _handleRadius, HandleSphere = _handleSphere, DeltaTime = deltaTime, ChunkIndexRange = ranges[1],
             }.ScheduleParallel(_query, jobHandle);
         }
 
@@ -80,6 +100,7 @@ namespace Perception
             public ComponentTypeHandle<ComponentHearingRadius> HandleRadius;
             [ReadOnly] public ComponentTypeHandle<ComponentHearingSphere> HandleSphere;
             [ReadOnly] public float DeltaTime;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [WriteOnly] public EntityCommandBuffer.ParallelWriter Commands;
             public ComponentTypeHandle<ComponentHearingDuration> HandleDuration;
@@ -88,6 +109,11 @@ namespace Perception
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var radii = chunk.GetNativeArray(ref HandleRadius);
                 var spheres = chunk.GetNativeArray(ref HandleSphere);
                 var durations = chunk.GetNativeArray(ref HandleDuration);
@@ -129,10 +155,16 @@ namespace Perception
             public ComponentTypeHandle<ComponentHearingRadius> HandleRadius;
             [ReadOnly] public ComponentTypeHandle<ComponentHearingSphere> HandleSphere;
             [ReadOnly] public float DeltaTime;
+            [ReadOnly] public int2 ChunkIndexRange;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (unfilteredChunkIndex < ChunkIndexRange.x || unfilteredChunkIndex >= ChunkIndexRange.y)
+                {
+                    return;
+                }
+
                 var radii = chunk.GetNativeArray(ref HandleRadius);
                 var spheres = chunk.GetNativeArray(ref HandleSphere);
 
