@@ -39,7 +39,7 @@ namespace Perception
             _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightPerceive>().Build();
             _queryWithoutCone = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightCone>().Build();
 
-            _querySources = SystemAPI.QueryBuilder().WithAll<TagSightSource, ComponentSightPosition>().Build();
+            _querySources = SystemAPI.QueryBuilder().WithAll<TagSightSource>().Build();
 
             _queryWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, ComponentSightCone>().WithAll<ComponentSightExtend, ComponentSightClip>().Build();
             _queryWithExtend = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, ComponentSightCone>().WithAll<ComponentSightExtend>().WithNone<ComponentSightClip>().Build();
