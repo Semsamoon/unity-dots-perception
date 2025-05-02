@@ -26,8 +26,8 @@ namespace Perception
             _queryWithoutPosition = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentHearingPosition>().Build();
             _queryWithoutTransform = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver>().WithNone<LocalToWorld>().Build();
 
-            _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<ComponentHearingOffset>().Build();
-            _query = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentHearingOffset>().Build();
+            _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<LocalToWorld, ComponentHearingOffset>().Build();
+            _query = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<LocalToWorld>().WithNone<ComponentHearingOffset>().Build();
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentHearingPosition>();
             _handleOffset = SystemAPI.GetComponentTypeHandle<ComponentHearingOffset>(isReadOnly: true);
