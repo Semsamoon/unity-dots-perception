@@ -168,12 +168,14 @@ namespace Perception.Editor
 
                 foreach (var memory in bufferMemory)
                 {
-                    var sourcePosition = LookupPosition[memory.Source].Source;
-
                     UnityEngine.Debug.DrawLine(position.Receiver, memory.Position, Debug.ColorSourceMemorized);
-                    UnityEngine.Debug.DrawLine(sourcePosition, memory.Position, Debug.ColorSourceMemorized);
                     DebugAdvanced.DrawOctahedron(memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, Debug.ColorSourceMemorized);
-                    DebugAdvanced.DrawOctahedron(sourcePosition, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceMemorized);
+
+                    if (LookupPosition.TryGetComponent(memory.Source, out var sourcePosition))
+                    {
+                        UnityEngine.Debug.DrawLine(sourcePosition.Source, memory.Position, Debug.ColorSourceMemorized);
+                        DebugAdvanced.DrawOctahedron(sourcePosition.Source, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceMemorized);
+                    }
                 }
 
                 foreach (var cone in bufferCone)
