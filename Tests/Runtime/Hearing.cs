@@ -10,8 +10,9 @@ namespace Perception.Tests
 {
     public sealed class Hearing
     {
-        private readonly float _awaitPhysicsTimeSquared = Time.fixedDeltaTime * Time.fixedDeltaTime;
-        private readonly WaitForSeconds _awaitPhysics = new(Time.fixedDeltaTime * 1.2f);
+        private const float Delay = 0.1f;
+        private const float DelaySquared = Delay * Delay;
+        private readonly WaitForSeconds _awaitDelay = new(Delay * 1.5f);
 
         [UnityTest]
         public IEnumerator Position()
@@ -49,7 +50,7 @@ namespace Perception.Tests
         public IEnumerator Sphere()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var source = new EntityBuilder(entityManager).Source(1, _awaitPhysicsTimeSquared).Build();
+            var source = new EntityBuilder(entityManager).Source(1, DelaySquared).Build();
 
             try
             {
@@ -60,23 +61,24 @@ namespace Perception.Tests
                 Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalCurrentSquared);
                 Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalPreviousSquared);
 
-                yield return _awaitPhysics;
-                Assert.AreEqual(_awaitPhysicsTimeSquared, entityManager.GetComponentData<ComponentHearingRadius>(source).CurrentSquared);
-                Assert.AreEqual(_awaitPhysicsTimeSquared, entityManager.GetComponentData<ComponentHearingRadius>(source).PreviousSquared);
+                yield return _awaitDelay;
+                Assert.AreEqual(DelaySquared, entityManager.GetComponentData<ComponentHearingRadius>(source).CurrentSquared);
+                Assert.AreEqual(DelaySquared, entityManager.GetComponentData<ComponentHearingRadius>(source).PreviousSquared);
 
                 entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
                 yield return null;
                 Assert.Less(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalCurrentSquared);
                 Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalPreviousSquared);
 
-                yield return _awaitPhysics;
+                yield return _awaitDelay;
                 Assert.False(entityManager.Exists(source));
-
-                source = new EntityBuilder(entityManager).Source(1, _awaitPhysicsTimeSquared).Build();
             }
             finally
             {
-                entityManager.DestroyEntity(source);
+                if (entityManager.Exists(source))
+                {
+                    entityManager.DestroyEntity(source);
+                }
             }
         }
 
@@ -85,7 +87,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().Build();
-            var source = new EntityBuilder(entityManager, new float3(0, 0, Time.fixedDeltaTime)).Source(1, _awaitPhysicsTimeSquared * 2).Build();
+            var source = new EntityBuilder(entityManager, new float3(0, 0, Delay)).Source(1, DelaySquared).Build();
 
             try
             {
@@ -93,13 +95,13 @@ namespace Perception.Tests
                 Assert.True(entityManager.HasBuffer<BufferHearingPerceive>(receiver));
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
 
-                yield return _awaitPhysics;
+                yield return _awaitDelay;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Source);
-                Assert.AreEqual(new float3(0, 0, Time.fixedDeltaTime), entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Position);
+                Assert.AreEqual(new float3(0, 0, Delay), entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Position);
 
                 entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
-                yield return _awaitPhysics;
+                yield return _awaitDelay;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
             }
             finally
@@ -113,7 +115,7 @@ namespace Perception.Tests
         public IEnumerator Memory()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().Memory(Time.fixedDeltaTime * 1.2f).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().Memory(Delay).Build();
             var source = new EntityBuilder(entityManager).Source(0, 1).Duration().Build();
 
             try
@@ -127,18 +129,17 @@ namespace Perception.Tests
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Source);
                 Assert.AreEqual(float3.zero, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Position);
-                Assert.AreEqual(Time.fixedDeltaTime * 1.2f, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
+                Assert.AreEqual(Delay, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
 
                 yield return null;
-                Assert.Greater(Time.fixedDeltaTime * 1.2f, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
+                Assert.Greater(Delay, entityManager.GetBuffer<BufferHearingMemory>(receiver)[0].Time);
 
                 entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.identity });
                 yield return null;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
 
                 entityManager.SetComponentData(receiver, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 1)) });
-                yield return _awaitPhysics;
-                yield return null;
+                yield return _awaitDelay;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingMemory>(receiver).Length);
             }
             finally
