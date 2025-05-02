@@ -1,121 +1,221 @@
-﻿using Unity.Collections;
+﻿using Unity.Burst;
+using Unity.Burst.Intrinsics;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Perception
 {
-    [UpdateInGroup(typeof(HearingSystemGroup)), UpdateAfter(typeof(SystemHearingSphere)), UpdateAfter(typeof(SystemHearingMemory))]
+    [BurstCompile, UpdateInGroup(typeof(HearingSystemGroup)), UpdateAfter(typeof(SystemHearingSphere)), UpdateAfter(typeof(SystemHearingMemory))]
     public partial struct SystemHearingPerceive : ISystem
     {
+        private EntityQuery _queryWithoutPerceive;
+
+        private EntityQuery _querySources;
+
+        private EntityQuery _queryWithMemory;
+        private EntityQuery _query;
+
+        private BufferTypeHandle<BufferHearingPerceive> _handleBufferPerceive;
+        private BufferTypeHandle<BufferHearingMemory> _handleBufferMemory;
+
+        private ComponentTypeHandle<ComponentHearingPosition> _handlePosition;
+        private ComponentTypeHandle<ComponentHearingMemory> _handleMemory;
+
+        private ComponentLookup<ComponentHearingPosition> _lookupPosition;
+        private ComponentLookup<ComponentHearingRadius> _lookupRadius;
+
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagHearingReceiver>().WithNone<BufferHearingPerceive>().Build();
+
+            _querySources = SystemAPI.QueryBuilder().WithAll<TagHearingSource>().Build();
+
+            _queryWithMemory = SystemAPI.QueryBuilder().WithAll<TagHearingReceiver>().WithAll<ComponentHearingMemory>().Build();
+            _query = SystemAPI.QueryBuilder().WithAll<TagHearingReceiver>().WithNone<ComponentHearingMemory>().Build();
+
+            _handleBufferPerceive = SystemAPI.GetBufferTypeHandle<BufferHearingPerceive>();
+            _handleBufferMemory = SystemAPI.GetBufferTypeHandle<BufferHearingMemory>();
+
+            _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentHearingPosition>(isReadOnly: true);
+            _handleMemory = SystemAPI.GetComponentTypeHandle<ComponentHearingMemory>(isReadOnly: true);
+
+            _lookupPosition = SystemAPI.GetComponentLookup<ComponentHearingPosition>(isReadOnly: true);
+            _lookupRadius = SystemAPI.GetComponentLookup<ComponentHearingRadius>(isReadOnly: true);
         }
 
+        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var commands = new EntityCommandBuffer(Allocator.Temp);
 
-            foreach (var receiver in SystemAPI.QueryBuilder()
-                         .WithAll<TagHearingReceiver>()
-                         .WithNone<BufferHearingPerceive>()
-                         .Build().ToEntityArray(Allocator.Temp))
+            foreach (var receiver in _queryWithoutPerceive.ToEntityArray(Allocator.Temp))
             {
                 commands.AddBuffer<BufferHearingPerceive>(receiver);
             }
 
             commands.Playback(state.EntityManager);
 
-            var buffersPerceive = SystemAPI.GetBufferLookup<BufferHearingPerceive>();
-            var buffersMemory = SystemAPI.GetBufferLookup<BufferHearingMemory>();
+            _handleBufferPerceive.Update(ref state);
+            _handleBufferMemory.Update(ref state);
 
-            foreach (var (positionRO, memoryRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentHearingPosition>, RefRO<ComponentHearingMemory>>()
-                         .WithAll<TagHearingReceiver>()
-                         .WithEntityAccess())
+            _handlePosition.Update(ref state);
+            _handleMemory.Update(ref state);
+
+            _lookupPosition.Update(ref state);
+            _lookupRadius.Update(ref state);
+
+            var sources = _querySources.ToEntityArray(Allocator.TempJob);
+            var sourcesReadOnly = sources.AsReadOnly();
+
+            var commonHandles = new CommonHandles
             {
-                var bufferPerceive = buffersPerceive[receiver];
-                var bufferMemory = buffersMemory[receiver];
-                ref readonly var position = ref positionRO.ValueRO;
+                HandlePosition = _handlePosition,
+                LookupPosition = _lookupPosition, LookupRadius = _lookupRadius, Sources = sourcesReadOnly,
+            };
 
-                var perceiveLength = bufferPerceive.Length;
+            var jobHandle = new JobUpdatePerceiveWithMemory
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+                HandleBufferMemory = _handleBufferMemory, HandleMemory = _handleMemory,
+            }.ScheduleParallel(_queryWithMemory, state.Dependency);
 
-                foreach (var (sourcePositionRO, radiusRO, source) in SystemAPI
-                             .Query<RefRO<ComponentHearingPosition>, RefRO<ComponentHearingRadius>>()
-                             .WithAll<TagHearingSource>()
-                             .WithEntityAccess())
+            jobHandle = new JobUpdatePerceive
+            {
+                HandleBufferPerceive = _handleBufferPerceive, CommonHandles = commonHandles,
+            }.ScheduleParallel(_query, jobHandle);
+
+            state.Dependency = sources.Dispose(jobHandle);
+        }
+
+        [BurstCompile]
+        private struct JobUpdatePerceiveWithMemory : IJobChunk
+        {
+            [WriteOnly] public BufferTypeHandle<BufferHearingPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
+
+            [WriteOnly] public BufferTypeHandle<BufferHearingMemory> HandleBufferMemory;
+            [ReadOnly] public ComponentTypeHandle<ComponentHearingMemory> HandleMemory;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                CommonHandles.Get(in chunk, out var arrays);
+
+                var buffersMemory = chunk.GetBufferAccessor(ref HandleBufferMemory);
+                var memories = chunk.GetNativeArray(ref HandleMemory);
+
+                for (var i = 0; i < chunk.Count; i++)
                 {
-                    var isPerceived = bufferPerceive.Contains(in source, perceiveLength, out var index, out var perceive);
+                    var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var position);
 
-                    if (isPerceived)
+                    var bufferMemory = buffersMemory[i];
+                    var memory = memories[i];
+                    var perceiveLength = bufferPerceive.Length;
+
+                    foreach (var source in CommonHandles.Sources)
                     {
-                        bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
-                    }
+                        var radius = CommonHandles.LookupRadius[source];
+                        var isPerceived = bufferPerceive.Contains(in source, perceiveLength, out var index, out var perceive);
 
-                    ref readonly var sourcePosition = ref sourcePositionRO.ValueRO;
-                    ref readonly var radius = ref radiusRO.ValueRO;
-
-                    var distanceCurrentSquared = math.distancesq(position.Current, sourcePosition.Current);
-                    var distancePreviousSquared = math.distancesq(position.Previous, sourcePosition.Previous);
-
-                    if ((distanceCurrentSquared <= radius.CurrentSquared && distanceCurrentSquared >= radius.InternalCurrentSquared)
-                        || (distanceCurrentSquared > radius.CurrentSquared && distancePreviousSquared < radius.InternalPreviousSquared)
-                        || (distanceCurrentSquared < radius.InternalCurrentSquared && distancePreviousSquared > radius.PreviousSquared))
-                    {
-                        bufferPerceive.Add(new BufferHearingPerceive
+                        if (isPerceived)
                         {
-                            Position = sourcePosition.Current,
-                            Source = source,
-                        });
-                        bufferMemory.Remove(source);
-                        continue;
+                            bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
+                        }
+
+                        var sourcePosition = CommonHandles.LookupPosition[source];
+                        var distanceCurrentSquared = math.distancesq(position.Current, sourcePosition.Current);
+                        var distancePreviousSquared = math.distancesq(position.Previous, sourcePosition.Previous);
+
+                        if (radius.IsInside(distanceCurrentSquared, distancePreviousSquared))
+                        {
+                            bufferPerceive.Add(new BufferHearingPerceive { Position = sourcePosition.Current, Source = source });
+                            bufferMemory.Remove(source);
+                            continue;
+                        }
+
+                        if (isPerceived)
+                        {
+                            bufferMemory.Add(new BufferHearingMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
+                        }
                     }
 
-                    if (isPerceived)
-                    {
-                        bufferMemory.Add(new BufferHearingMemory { Position = perceive.Position, Source = perceive.Source, Time = memoryRO.ValueRO.Time });
-                    }
+                    bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memory.Time);
                 }
-
-                bufferPerceive.ToMemories(perceiveLength, ref bufferMemory, memoryRO.ValueRO.Time);
             }
+        }
 
-            foreach (var (positionRO, receiver) in SystemAPI
-                         .Query<RefRO<ComponentHearingPosition>>()
-                         .WithAll<TagHearingReceiver>()
-                         .WithNone<ComponentHearingMemory>()
-                         .WithEntityAccess())
+        [BurstCompile]
+        private struct JobUpdatePerceive : IJobChunk
+        {
+            [WriteOnly] public BufferTypeHandle<BufferHearingPerceive> HandleBufferPerceive;
+            [ReadOnly] public CommonHandles CommonHandles;
+
+            [BurstCompile]
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var bufferPerceive = buffersPerceive[receiver];
-                ref readonly var position = ref positionRO.ValueRO;
+                var buffersPerceive = chunk.GetBufferAccessor(ref HandleBufferPerceive);
+                CommonHandles.Get(in chunk, out var arrays);
 
-                bufferPerceive.Clear();
-
-                foreach (var (sourcePositionRO, radiusRO, source) in SystemAPI
-                             .Query<RefRO<ComponentHearingPosition>, RefRO<ComponentHearingRadius>>()
-                             .WithAll<TagHearingSource>()
-                             .WithEntityAccess())
+                for (var i = 0; i < chunk.Count; i++)
                 {
-                    ref readonly var sourcePosition = ref sourcePositionRO.ValueRO;
-                    ref readonly var radius = ref radiusRO.ValueRO;
+                    var bufferPerceive = buffersPerceive[i];
+                    arrays.Get(i, out var position);
 
-                    var distanceCurrentSquared = math.distancesq(position.Current, sourcePosition.Current);
-                    var distancePreviousSquared = math.distancesq(position.Previous, sourcePosition.Previous);
+                    bufferPerceive.Clear();
 
-                    if ((distanceCurrentSquared <= radius.CurrentSquared && distanceCurrentSquared >= radius.InternalCurrentSquared)
-                        || (distanceCurrentSquared > radius.CurrentSquared && distancePreviousSquared < radius.InternalPreviousSquared)
-                        || (distanceCurrentSquared < radius.InternalCurrentSquared && distancePreviousSquared > radius.PreviousSquared))
+                    foreach (var source in CommonHandles.Sources)
                     {
-                        bufferPerceive.Add(new BufferHearingPerceive
+                        var radius = CommonHandles.LookupRadius[source];
+                        var sourcePosition = CommonHandles.LookupPosition[source];
+                        var distanceCurrentSquared = math.distancesq(position.Current, sourcePosition.Current);
+                        var distancePreviousSquared = math.distancesq(position.Previous, sourcePosition.Previous);
+
+                        if (radius.IsInside(distanceCurrentSquared, distancePreviousSquared))
                         {
-                            Position = sourcePosition.Current,
-                            Source = source,
-                        });
+                            bufferPerceive.Add(new BufferHearingPerceive { Position = sourcePosition.Current, Source = source });
+                        }
                     }
                 }
+            }
+        }
+
+        [BurstCompile]
+        private struct CommonHandles
+        {
+            public ComponentTypeHandle<ComponentHearingPosition> HandlePosition;
+
+            public ComponentLookup<ComponentHearingPosition> LookupPosition;
+            public ComponentLookup<ComponentHearingRadius> LookupRadius;
+            public NativeArray<Entity>.ReadOnly Sources;
+
+            [BurstCompile]
+            public void Get(in ArchetypeChunk chunk, out CommonArrays arrays)
+            {
+                arrays = new CommonArrays
+                {
+                    Positions = chunk.GetNativeArray(ref HandlePosition),
+                };
+            }
+        }
+
+        [BurstCompile]
+        private struct CommonArrays
+        {
+            public NativeArray<ComponentHearingPosition> Positions;
+
+            [BurstCompile]
+            public void Get(int index, out ComponentHearingPosition position)
+            {
+                position = Positions[index];
             }
         }
     }
