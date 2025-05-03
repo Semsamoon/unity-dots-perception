@@ -47,7 +47,7 @@ namespace Perception.Tests
         public IEnumerator Cone()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(new float2(1, 1), 4).Collider(_collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(new float2(1, 0), 4).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 2)).Source().Collider(_collider).Build();
 
             try
@@ -66,17 +66,20 @@ namespace Perception.Tests
                 yield return null;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-                entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 16 });
+                var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 16 };
+                entityManager.SetComponentData(receiver, cone);
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
                 yield return null;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
-                entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 13 });
+                cone.ClipSquared = 13;
+                entityManager.AddComponentData(receiver, cone);
                 yield return null;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
+                cone.ClipSquared = 4;
                 entityManager.AddComponentData(receiver, new ComponentSightOffset { Receiver = new float3(2, 2, -2) });
-                entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
+                entityManager.SetComponentData(receiver, cone);
                 yield return _awaitPhysics;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
@@ -96,7 +99,7 @@ namespace Perception.Tests
         public IEnumerator PerceiveSingle()
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(new float2(-1, -1), 100).Collider(_collider).Build();
+            var receiver = new EntityBuilder(entityManager).Receiver().RaySingle().Cone(new float2(-1, 0), 100).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5)).Source().Collider(_collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
@@ -112,12 +115,13 @@ namespace Perception.Tests
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Source);
                 Assert.AreEqual(new float3(0, 0, 5), entityManager.GetBuffer<BufferSightPerceive>(receiver)[0].Position);
 
-                entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 26 });
-                entityManager.SetComponentData(receiver, new ComponentSightCone { AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 49 });
+                var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 49, ClipSquared = 26 };
+                entityManager.SetComponentData(receiver, cone);
                 yield return null;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
-                entityManager.SetComponentData(receiver, new ComponentSightClip { RadiusSquared = 4 });
+                cone.ClipSquared = 4;
+                entityManager.SetComponentData(receiver, cone);
                 yield return null;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
@@ -145,7 +149,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().RayMultiple()
-                .Cone(new float2(-1, -1), 100).RayOffset(new float3(0, 0.5f, 0)).Collider(_collider).Build();
+                .Cone(new float2(-1, 0), 100).RayOffset(new float3(0, 0.5f, 0)).Collider(_collider).Build();
             var source = new EntityBuilder(entityManager, new float3(0, 0, 5.5f)).Source().Collider(_collider).Build();
             var obstacle = new EntityBuilder(entityManager, new float3(0, 0, 3)).Collider(_collider).Build();
 
@@ -169,7 +173,8 @@ namespace Perception.Tests
                 yield return null;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
-                entityManager.AddComponentData(receiver, new ComponentSightClip { RadiusSquared = 32 });
+                var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(-1, 0), RadiusSquared = 100, ClipSquared = 32 };
+                entityManager.SetComponentData(receiver, cone);
                 yield return null;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
             }
@@ -292,11 +297,11 @@ namespace Perception.Tests
                 return this;
             }
 
-            public EntityBuilder Cone(float2 anglesCos = default, float radiusSquared = 0)
+            public EntityBuilder Cone(float2 anglesCos = default, float radiusSquared = 0, float clipSquared = 0)
             {
                 _entityManager.AddComponentData(_entity, new ComponentSightCone
                 {
-                    AnglesCos = anglesCos, RadiusSquared = radiusSquared
+                    Filter = CollisionFilter.Default, AnglesCos = anglesCos, RadiusSquared = radiusSquared, ClipSquared = clipSquared
                 });
                 return this;
             }
