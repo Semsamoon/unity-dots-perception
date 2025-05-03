@@ -45,18 +45,11 @@ namespace Perception
                     AddComponent(entity, new TagSightReceiver());
                     AddComponent(entity, new ComponentSightCone
                     {
-                        RadiusSquared = authoring._coneRadius * authoring._coneRadius,
+                        Filter = authoring._collisionFilter,
                         AnglesCos = math.cos(math.radians(authoring._coneAnglesDegrees / 2)),
+                        RadiusSquared = authoring._coneRadius * authoring._coneRadius,
+                        ClipSquared = authoring._clipRadius * authoring._clipRadius,
                     });
-                    AddComponent(entity, new ComponentSightFilter { Value = authoring._collisionFilter });
-
-                    if (authoring._clipRadius > 0)
-                    {
-                        AddComponent(entity, new ComponentSightClip
-                        {
-                            RadiusSquared = authoring._clipRadius * authoring._clipRadius
-                        });
-                    }
 
                     if (authoring._extendRadius > 0 || math.any(authoring._extendAnglesDegrees > float2.zero))
                     {
