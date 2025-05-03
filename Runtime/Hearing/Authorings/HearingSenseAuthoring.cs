@@ -54,6 +54,12 @@ namespace Perception
                         RangeSquared = authoring._maxRange * authoring._maxRange,
                         Duration = authoring._duration == -1 ? float.PositiveInfinity : authoring._duration,
                     });
+
+                    if (!authoring._isReceiver)
+                    {
+                        var position = authoring.transform.TransformPoint(authoring._offset);
+                        AddComponent(entity, new ComponentHearingPosition { Current = position, Previous = position });
+                    }
                 }
 
                 if (math.any(authoring._offset != float3.zero))
