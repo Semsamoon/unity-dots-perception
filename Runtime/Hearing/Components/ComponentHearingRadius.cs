@@ -14,6 +14,7 @@ namespace Perception
         public float PreviousSquared;
         public float InternalCurrentSquared;
         public float InternalPreviousSquared;
+        public float CurrentDuration;
 
         [BurstCompile]
         public static float CalculateCurrent(float previousSquared, in ComponentHearingSphere sphere, float deltaTime)

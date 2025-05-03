@@ -9,5 +9,6 @@ namespace Perception
     {
         public float Speed;
         public float RangeSquared;
+        public float Duration;
     }
 }
