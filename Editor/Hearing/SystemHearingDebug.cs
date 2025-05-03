@@ -11,8 +11,6 @@ namespace Perception.Editor
     {
         private EntityQuery _queryWithoutDebug;
 
-        private EntityQuery _querySphereWithDurationWithTransform;
-        private EntityQuery _querySphereWithDuration;
         private EntityQuery _querySphereWithTransform;
         private EntityQuery _querySphere;
         private EntityQuery _queryMemorized;
@@ -32,10 +30,6 @@ namespace Perception.Editor
 
             _queryWithoutDebug = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<TagHearingDebug>().Build();
 
-            _querySphereWithDurationWithTransform = SystemAPI.QueryBuilder().WithAll<TagHearingSource, TagHearingDebug>()
-                .WithAll<ComponentHearingPosition, ComponentHearingRadius>().WithAll<ComponentHearingDuration, LocalToWorld>().Build();
-            _querySphereWithDuration = SystemAPI.QueryBuilder().WithAll<TagHearingSource, TagHearingDebug>()
-                .WithAll<ComponentHearingPosition, ComponentHearingRadius>().WithAll<ComponentHearingDuration>().WithNone<LocalToWorld>().Build();
             _querySphereWithTransform = SystemAPI.QueryBuilder().WithAll<TagHearingSource, TagHearingDebug>()
                 .WithAll<ComponentHearingPosition, ComponentHearingRadius>().WithAll<LocalToWorld>().Build();
             _querySphere = SystemAPI.QueryBuilder().WithAll<TagHearingSource, TagHearingDebug>()
@@ -68,37 +62,11 @@ namespace Perception.Editor
 
             ref readonly var debug = ref SystemAPI.GetSingletonRW<ComponentHearingDebug>().ValueRO;
 
-            var jobHandle = new JobDebugSphereWithDurationWithTransform { Debug = debug }.ScheduleParallel(_querySphereWithDurationWithTransform, state.Dependency);
-            jobHandle = new JobDebugSphereWithDuration { Debug = debug }.ScheduleParallel(_querySphereWithDuration, jobHandle);
-            jobHandle = new JobDebugSphereWithTransform { Debug = debug }.ScheduleParallel(_querySphereWithTransform, jobHandle);
+            var jobHandle = new JobDebugSphereWithTransform { Debug = debug }.ScheduleParallel(_querySphereWithTransform, state.Dependency);
             jobHandle = new JobDebugSphere { Debug = debug }.ScheduleParallel(_querySphere, jobHandle);
             jobHandle = new JobDebugMemorized { Debug = debug, LookupPosition = _lookupPosition }.ScheduleParallel(_queryMemorized, jobHandle);
             state.Dependency = new JobDebugPerceived { Debug = debug }.ScheduleParallel(_queryPerceived, jobHandle);
             state.Dependency.Complete();
-        }
-
-        [BurstCompile]
-        private partial struct JobDebugSphereWithDurationWithTransform : IJobEntity
-        {
-            [ReadOnly] public ComponentHearingDebug Debug;
-
-            [BurstCompile]
-            public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius, in LocalToWorld transform)
-            {
-                DebugAdvanced.DrawSphere(position.Current, transform.Rotation, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
-            }
-        }
-
-        [BurstCompile]
-        private partial struct JobDebugSphereWithDuration : IJobEntity
-        {
-            [ReadOnly] public ComponentHearingDebug Debug;
-
-            [BurstCompile]
-            public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius)
-            {
-                DebugAdvanced.DrawSphere(position.Current, quaternion.identity, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
-            }
         }
 
         [BurstCompile]
@@ -110,6 +78,11 @@ namespace Perception.Editor
             public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius, in LocalToWorld transform)
             {
                 DebugAdvanced.DrawSphere(position.Current, transform.Rotation, math.sqrt(radius.CurrentSquared), Debug.ColorSourceSphere);
+
+                if (radius.CurrentDuration <= 0)
+                {
+                    DebugAdvanced.DrawSphere(position.Current, transform.Rotation, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
+                }
             }
         }
 
@@ -122,6 +95,11 @@ namespace Perception.Editor
             public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius)
             {
                 DebugAdvanced.DrawSphere(position.Current, quaternion.identity, math.sqrt(radius.CurrentSquared), Debug.ColorSourceSphere);
+
+                if (radius.CurrentDuration <= 0)
+                {
+                    DebugAdvanced.DrawSphere(position.Current, quaternion.identity, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
+                }
             }
         }
 
