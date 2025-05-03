@@ -1,5 +1,7 @@
-﻿using Unity.Entities;
+﻿using System;
+using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Physics;
 using UnityEngine;
 
 namespace Perception
@@ -17,6 +19,7 @@ namespace Perception
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
         [SerializeField] protected float3[] _rayOffsets;
+        [SerializeField] protected CollisionFilterSerializable _collisionFilter;
 
         [Header("Receiver Additions")]
         [SerializeField] protected float3 _receiverOffset;
@@ -45,6 +48,7 @@ namespace Perception
                         RadiusSquared = authoring._coneRadius * authoring._coneRadius,
                         AnglesCos = math.cos(math.radians(authoring._coneAnglesDegrees / 2)),
                     });
+                    AddComponent(entity, new ComponentSightFilter { Value = authoring._collisionFilter });
 
                     if (authoring._clipRadius > 0)
                     {
@@ -215,5 +219,33 @@ namespace Perception
             }
         }
 #endif
+    }
+
+    [Serializable]
+    public struct CollisionFilterSerializable
+    {
+        public LayerMask BelongsTo;
+        public LayerMask CollidesWith;
+        public int GroupIndex;
+
+        public static implicit operator CollisionFilter(in CollisionFilterSerializable serializable)
+        {
+            return new CollisionFilter
+            {
+                BelongsTo = math.asuint(serializable.BelongsTo.value),
+                CollidesWith = math.asuint(serializable.CollidesWith.value),
+                GroupIndex = serializable.GroupIndex,
+            };
+        }
+
+        public static implicit operator CollisionFilterSerializable(in CollisionFilter filter)
+        {
+            return new CollisionFilterSerializable
+            {
+                BelongsTo = math.asint(filter.BelongsTo),
+                CollidesWith = math.asint(filter.CollidesWith),
+                GroupIndex = filter.GroupIndex,
+            };
+        }
     }
 }
