@@ -11,9 +11,7 @@ namespace Perception.Editor
     {
         private EntityQuery _queryWithoutDebug;
 
-        private EntityQuery _queryConeWithExtendWithClip;
         private EntityQuery _queryConeWithExtend;
-        private EntityQuery _queryConeWithClip;
         private EntityQuery _queryCone;
         private EntityQuery _queryPerceivedHiddenMemorized;
         private EntityQuery _queryPerceivedHidden;
@@ -32,14 +30,10 @@ namespace Perception.Editor
 
             _queryWithoutDebug = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithAbsent<TagSightDebug>().Build();
 
-            _queryConeWithExtendWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
-                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend, ComponentSightClip>().Build();
             _queryConeWithExtend = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
-                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend>().WithNone<ComponentSightClip>().Build();
-            _queryConeWithClip = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
-                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightClip>().WithNone<ComponentSightExtend>().Build();
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithAll<ComponentSightExtend>().Build();
             _queryCone = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
-                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithNone<ComponentSightExtend, ComponentSightClip>().Build();
+                .WithAll<ComponentSightPosition, ComponentSightCone, LocalToWorld>().WithNone<ComponentSightExtend>().Build();
             _queryPerceivedHiddenMemorized = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
                 .WithAll<BufferSightPerceive, BufferSightCone, ComponentSightPosition>().WithAll<BufferSightMemory, ComponentSightMemory>().Build();
             _queryPerceivedHidden = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightDebug>()
@@ -70,33 +64,10 @@ namespace Perception.Editor
 
             ref readonly var debug = ref SystemAPI.GetSingletonRW<ComponentSightDebug>().ValueRO;
 
-            var jobHandle = new JobDebugConeWithExtendWithClip { Debug = debug }.ScheduleParallel(_queryConeWithExtendWithClip, state.Dependency);
-            jobHandle = new JobDebugConeWithExtend { Debug = debug }.ScheduleParallel(_queryConeWithExtend, jobHandle);
-            jobHandle = new JobDebugConeWithClip { Debug = debug }.ScheduleParallel(_queryConeWithClip, jobHandle);
+            var jobHandle = new JobDebugConeWithExtend { Debug = debug }.ScheduleParallel(_queryConeWithExtend, state.Dependency);
             jobHandle = new JobDebugCone { Debug = debug }.ScheduleParallel(_queryCone, jobHandle);
             jobHandle = new JobDebugPerceivedHiddenMemorized { Debug = debug, LookupPosition = _lookupPosition }.ScheduleParallel(_queryPerceivedHiddenMemorized, jobHandle);
             state.Dependency = new JobDebugPerceivedHidden { Debug = debug }.ScheduleParallel(_queryPerceivedHidden, jobHandle);
-        }
-
-        [BurstCompile]
-        private partial struct JobDebugConeWithExtendWithClip : IJobEntity
-        {
-            [ReadOnly] public ComponentSightDebug Debug;
-
-            [BurstCompile]
-            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform,
-                in ComponentSightExtend extend, in ComponentSightClip clip)
-            {
-                var radius = math.sqrt(cone.RadiusSquared);
-                var angles = math.acos(cone.AnglesCos);
-                var extendRadius = math.sqrt(extend.RadiusSquared);
-                var extendAngles = math.acos(extend.AnglesCos);
-                var clipRadius = math.sqrt(clip.RadiusSquared);
-
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, extendRadius, extendAngles, Debug.ColorReceiverExtend);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Debug.ColorReceiverCone);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, extendAngles, Debug.ColorReceiverClip);
-            }
         }
 
         [BurstCompile]
@@ -108,29 +79,14 @@ namespace Perception.Editor
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightExtend extend)
             {
                 var radius = math.sqrt(cone.RadiusSquared);
+                var clip = math.sqrt(cone.ClipSquared);
                 var angles = math.acos(cone.AnglesCos);
                 var extendRadius = math.sqrt(extend.RadiusSquared);
                 var extendAngles = math.acos(extend.AnglesCos);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendRadius, extendAngles, Debug.ColorReceiverExtend);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Debug.ColorReceiverCone);
-            }
-        }
-
-        [BurstCompile]
-        private partial struct JobDebugConeWithClip : IJobEntity
-        {
-            [ReadOnly] public ComponentSightDebug Debug;
-
-            [BurstCompile]
-            public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightClip clip)
-            {
-                var radius = math.sqrt(cone.RadiusSquared);
-                var angles = math.acos(cone.AnglesCos);
-                var clipRadius = math.sqrt(clip.RadiusSquared);
-
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clipRadius, radius, angles, Debug.ColorReceiverCone);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clipRadius, angles, Debug.ColorReceiverClip);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, extendRadius, extendAngles, Debug.ColorReceiverExtend);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, radius, angles, Debug.ColorReceiverCone);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, extendAngles, Debug.ColorReceiverClip);
             }
         }
 
@@ -143,9 +99,11 @@ namespace Perception.Editor
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform)
             {
                 var radius = math.sqrt(cone.RadiusSquared);
+                var clip = math.sqrt(cone.ClipSquared);
                 var angles = math.acos(cone.AnglesCos);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, radius, angles, Debug.ColorReceiverCone);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, radius, angles, Debug.ColorReceiverCone);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, angles, Debug.ColorReceiverClip);
             }
         }
 
