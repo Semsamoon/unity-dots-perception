@@ -52,12 +52,8 @@ namespace Perception
                     {
                         Speed = authoring._speed,
                         RangeSquared = authoring._maxRange * authoring._maxRange,
+                        Duration = authoring._duration == -1 ? float.PositiveInfinity : authoring._duration,
                     });
-
-                    if (authoring._duration >= 0)
-                    {
-                        AddComponent(entity, new ComponentHearingDuration { Time = authoring._duration });
-                    }
                 }
 
                 if (math.any(authoring._offset != float3.zero))
