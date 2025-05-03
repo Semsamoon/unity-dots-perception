@@ -74,6 +74,7 @@ namespace Perception.Editor
             jobHandle = new JobDebugSphere { Debug = debug }.ScheduleParallel(_querySphere, jobHandle);
             jobHandle = new JobDebugMemorized { Debug = debug, LookupPosition = _lookupPosition }.ScheduleParallel(_queryMemorized, jobHandle);
             state.Dependency = new JobDebugPerceived { Debug = debug }.ScheduleParallel(_queryPerceived, jobHandle);
+            state.Dependency.Complete();
         }
 
         [BurstCompile]
