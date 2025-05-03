@@ -68,6 +68,7 @@ namespace Perception.Editor
             jobHandle = new JobDebugCone { Debug = debug }.ScheduleParallel(_queryCone, jobHandle);
             jobHandle = new JobDebugPerceivedHiddenMemorized { Debug = debug, LookupPosition = _lookupPosition }.ScheduleParallel(_queryPerceivedHiddenMemorized, jobHandle);
             state.Dependency = new JobDebugPerceivedHidden { Debug = debug }.ScheduleParallel(_queryPerceivedHidden, jobHandle);
+            state.Dependency.Complete();
         }
 
         [BurstCompile]
