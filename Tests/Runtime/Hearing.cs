@@ -65,7 +65,9 @@ namespace Perception.Tests
                 Assert.AreEqual(DelaySquared, entityManager.GetComponentData<ComponentHearingRadius>(source).CurrentSquared);
                 Assert.AreEqual(DelaySquared, entityManager.GetComponentData<ComponentHearingRadius>(source).PreviousSquared);
 
-                entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
+                var radius = entityManager.GetComponentData<ComponentHearingRadius>(source);
+                radius.CurrentDuration = 0;
+                entityManager.SetComponentData(source, radius);
                 yield return null;
                 Assert.Less(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalCurrentSquared);
                 Assert.AreEqual(0, entityManager.GetComponentData<ComponentHearingRadius>(source).InternalPreviousSquared);
@@ -100,7 +102,9 @@ namespace Perception.Tests
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Source);
                 Assert.AreEqual(new float3(0, 0, Delay), entityManager.GetBuffer<BufferHearingPerceive>(receiver)[0].Position);
 
-                entityManager.AddComponentData(source, new ComponentHearingDuration { Time = 0 });
+                var radius = entityManager.GetComponentData<ComponentHearingRadius>(source);
+                radius.CurrentDuration = 0;
+                entityManager.SetComponentData(source, radius);
                 yield return _awaitDelay;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferHearingPerceive>(receiver).Length);
             }
@@ -116,7 +120,7 @@ namespace Perception.Tests
         {
             var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
             var receiver = new EntityBuilder(entityManager).Receiver().Memory(Delay).Build();
-            var source = new EntityBuilder(entityManager).Source(0, 1).Duration().Build();
+            var source = new EntityBuilder(entityManager).Source(0, 1).Build();
 
             try
             {
@@ -167,22 +171,16 @@ namespace Perception.Tests
                 return this;
             }
 
-            public EntityBuilder Source(float speed = 0, float rangeSquared = 0)
+            public EntityBuilder Source(float speed = 0, float rangeSquared = 0, float duration = float.PositiveInfinity)
             {
                 _entityManager.AddComponentData(_entity, new TagHearingSource());
-                _entityManager.AddComponentData(_entity, new ComponentHearingSphere { Speed = speed, RangeSquared = rangeSquared });
+                _entityManager.AddComponentData(_entity, new ComponentHearingSphere { Speed = speed, RangeSquared = rangeSquared, Duration = duration });
                 return this;
             }
 
             public EntityBuilder Offset(float3 offset = default)
             {
                 _entityManager.AddComponentData(_entity, new ComponentHearingOffset { Value = offset });
-                return this;
-            }
-
-            public EntityBuilder Duration(float duration = 0)
-            {
-                _entityManager.AddComponentData(_entity, new ComponentHearingDuration { Time = duration });
                 return this;
             }
 
