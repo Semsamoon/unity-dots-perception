@@ -122,18 +122,18 @@ namespace Perception.Editor
                 foreach (var perceive in bufferPerceive)
                 {
                     UnityEngine.Debug.DrawLine(position.Receiver, perceive.Position, Debug.ColorSourcePerceived);
-                    DebugAdvanced.DrawOctahedron(perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourcePerceived);
+                    DebugAdvanced.DrawOctahedron(in perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourcePerceived);
                 }
 
                 foreach (var memory in bufferMemory)
                 {
                     UnityEngine.Debug.DrawLine(position.Receiver, memory.Position, Debug.ColorSourceMemorized);
-                    DebugAdvanced.DrawOctahedron(memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, Debug.ColorSourceMemorized);
+                    DebugAdvanced.DrawOctahedron(in memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, in Debug.ColorSourceMemorized);
 
                     if (LookupPosition.TryGetComponent(memory.Source, out var sourcePosition))
                     {
                         UnityEngine.Debug.DrawLine(sourcePosition.Source, memory.Position, Debug.ColorSourceMemorized);
-                        DebugAdvanced.DrawOctahedron(sourcePosition.Source, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceMemorized);
+                        DebugAdvanced.DrawOctahedron(in sourcePosition.Source, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourceMemorized);
                     }
                 }
 
@@ -142,7 +142,7 @@ namespace Perception.Editor
                     if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length) && !bufferMemory.Contains(in cone.Source))
                     {
                         UnityEngine.Debug.DrawLine(position.Receiver, cone.Position, Debug.ColorSourceHidden);
-                        DebugAdvanced.DrawOctahedron(cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceHidden);
+                        DebugAdvanced.DrawOctahedron(in cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourceHidden);
                     }
                 }
             }
@@ -159,7 +159,7 @@ namespace Perception.Editor
                 foreach (var perceive in bufferPerceive)
                 {
                     UnityEngine.Debug.DrawLine(position.Receiver, perceive.Position, Debug.ColorSourcePerceived);
-                    DebugAdvanced.DrawOctahedron(perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourcePerceived);
+                    DebugAdvanced.DrawOctahedron(in perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourcePerceived);
                 }
 
                 foreach (var cone in bufferCone)
@@ -167,7 +167,7 @@ namespace Perception.Editor
                     if (!bufferPerceive.Contains(in cone.Source, bufferPerceive.Length))
                     {
                         UnityEngine.Debug.DrawLine(position.Receiver, cone.Position, Debug.ColorSourceHidden);
-                        DebugAdvanced.DrawOctahedron(cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceHidden);
+                        DebugAdvanced.DrawOctahedron(in cone.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourceHidden);
                     }
                 }
             }

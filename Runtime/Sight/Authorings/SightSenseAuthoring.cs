@@ -187,12 +187,12 @@ namespace Perception
             var radiusY = math.sqrt(2 * radius * math.abs(offsetY) - offsetY * offsetY);
             var verticalsOffset = math.rotate(rotation, new Vector3(0, offsetY - radius, 0));
 
-            DebugAdvanced.DrawCurve(position + verticalsOffset, rotation, radiusY, halfAngleX * 2, color, sparsity);
-            DebugAdvanced.DrawCurve(position - verticalsOffset, rotation, radiusY, halfAngleX * 2, color, sparsity);
+            DebugAdvanced.DrawCurve(position + verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
+            DebugAdvanced.DrawCurve(position - verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
 
             if (halfAngleY > 0.5f)
             {
-                DebugAdvanced.DrawCurve(position, rotation, radius, halfAngleX * 2, color, sparsity);
+                DebugAdvanced.DrawCurve(in position, in rotation, radius, halfAngleX * 2, in color, sparsity);
             }
 
             var segments = (int)(halfAngleX * radius / 1000) + (int)halfAngleX + 1;
@@ -203,7 +203,7 @@ namespace Perception
                 var angle = math.lerp(-halfAngleX, halfAngleX, (float)i / segments);
                 var quaternion = math.mul(rotation, Unity.Mathematics.quaternion.Euler(0, angle, math.PIHALF));
 
-                DebugAdvanced.DrawCurve(position, quaternion, radius, halfAngleY * 2, color, sparsity);
+                DebugAdvanced.DrawCurve(in position, in quaternion, radius, halfAngleY * 2, in color, sparsity);
 
                 for (var j = 0; j < 2; j++)
                 {
