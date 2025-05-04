@@ -29,7 +29,7 @@ namespace Perception
         [Header("Source Additions")]
         [SerializeField] protected float3 _sourceOffset;
 
-        [Header("Common Additions")]
+        [Header("Common")]
         [SerializeField] protected GameObject[] _children;
         [SerializeField] protected TeamFilterSerializable _teamFilter;
 
