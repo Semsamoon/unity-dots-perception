@@ -33,6 +33,7 @@ namespace Perception
 
         [Header("Common Additions")]
         [SerializeField] protected GameObject[] _children;
+        [SerializeField] protected TeamFilterSerializable _teamFilter;
 
         public class Baker : Baker<SightSenseAuthoring>
         {
@@ -112,6 +113,8 @@ namespace Perception
                             }
                         }
                     }
+
+                    AddComponent(entity, new ComponentSightFilter { BelongsTo = authoring._teamFilter.BelongsTo, Perceives = authoring._teamFilter.Perceives });
                 }
             }
         }
