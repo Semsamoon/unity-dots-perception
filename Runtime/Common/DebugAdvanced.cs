@@ -1,11 +1,15 @@
-﻿using Unity.Mathematics;
+﻿using System.Diagnostics;
+using Unity.Burst;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Perception
 {
+    [BurstCompile]
     public static class DebugAdvanced
     {
-        public static void DrawCurve(float3 center, quaternion rotation, float radius, float angleRadians, Color color, float sparsity = 1000)
+        [BurstCompile]
+        public static void DrawCurve(in float3 center, in quaternion rotation, float radius, float angleRadians, in Color color, float sparsity = 1000)
         {
             var halfAngle = angleRadians / 2;
             var segments = (int)(halfAngle * radius / sparsity) + 32;
@@ -18,18 +22,20 @@ namespace Perception
                 var start = center + math.rotate(rotation, new float3(math.sin(startAngle), 0, math.cos(startAngle))) * radius;
                 var end = center + math.rotate(rotation, new float3(math.sin(endAngle), 0, math.cos(endAngle))) * radius;
 
-                Debug.DrawLine(start, end, color);
+                UnityEngine.Debug.DrawLine(start, end, color);
             }
         }
 
-        public static void DrawSphere(float3 center, quaternion rotation, float radius, Color color, float sparsity = 1000)
+        [BurstCompile]
+        public static void DrawSphere(in float3 center, in quaternion rotation, float radius, in Color color, float sparsity = 1000)
         {
-            DrawCurve(center, rotation, radius, math.PI2, color, sparsity);
-            DrawCurve(center, math.mul(rotation, quaternion.RotateX(math.PIHALF)), radius, math.PI2, color, sparsity);
-            DrawCurve(center, math.mul(rotation, quaternion.RotateZ(math.PIHALF)), radius, math.PI2, color, sparsity);
+            DrawCurve(in center, in rotation, radius, math.PI2, in color, sparsity);
+            DrawCurve(in center, math.mul(rotation, quaternion.RotateX(math.PIHALF)), radius, math.PI2, in color, sparsity);
+            DrawCurve(in center, math.mul(rotation, quaternion.RotateZ(math.PIHALF)), radius, math.PI2, in color, sparsity);
         }
 
-        public static void DrawOctahedron(float3 center, float3 size, Color color)
+        [BurstCompile]
+        public static void DrawOctahedron(in float3 center, in float3 size, in Color color)
         {
             var verticalPoint = new float3(0, size.y / 2, 0);
 
@@ -41,9 +47,9 @@ namespace Perception
 
             for (var i = 0; i < 4; i++)
             {
-                Debug.DrawLine(center + horizontalPoints[i], center + verticalPoint, color);
-                Debug.DrawLine(center + horizontalPoints[i], center - verticalPoint, color);
-                Debug.DrawLine(center + horizontalPoints[i], center + horizontalPoints[(i + 1) % 4], color);
+                UnityEngine.Debug.DrawLine(center + horizontalPoints[i], center + verticalPoint, color);
+                UnityEngine.Debug.DrawLine(center + horizontalPoints[i], center - verticalPoint, color);
+                UnityEngine.Debug.DrawLine(center + horizontalPoints[i], center + horizontalPoints[(i + 1) % 4], color);
             }
         }
     }
