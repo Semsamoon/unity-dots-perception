@@ -6,7 +6,12 @@ namespace Perception
     [Serializable]
     public struct TeamFilterSerializable
     {
-        public uint BelongsTo;
-        public uint Perceives;
+        [TeamFilterMask] public uint BelongsTo;
+        [TeamFilterMask] public uint Perceives;
+    }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class TeamFilterMaskAttribute : PropertyAttribute
+    {
     }
 }
