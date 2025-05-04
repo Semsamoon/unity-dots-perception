@@ -112,7 +112,7 @@ namespace Perception
                         }
                     }
 
-                    AddComponent(entity, new ComponentSightFilter { BelongsTo = authoring._teamFilter.BelongsTo, Perceives = authoring._teamFilter.Perceives });
+                    AddComponent(entity, new ComponentTeamFilter { BelongsTo = authoring._teamFilter.BelongsTo, Perceives = authoring._teamFilter.Perceives });
                 }
             }
         }
