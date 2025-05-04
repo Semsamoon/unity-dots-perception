@@ -10,6 +10,7 @@ namespace Perception
     public partial struct SystemHearingPerceive : ISystem
     {
         private EntityQuery _queryWithoutPerceive;
+        private EntityQuery _queryWithoutFilter;
 
         private EntityQuery _querySources;
 
@@ -21,9 +22,11 @@ namespace Perception
 
         private ComponentTypeHandle<ComponentHearingPosition> _handlePosition;
         private ComponentTypeHandle<ComponentHearingMemory> _handleMemory;
+        private ComponentTypeHandle<ComponentTeamFilter> _handleFilter;
 
         private ComponentLookup<ComponentHearingPosition> _lookupPosition;
         private ComponentLookup<ComponentHearingRadius> _lookupRadius;
+        private ComponentLookup<ComponentTeamFilter> _lookupFilter;
 
         private int2 _chunkIndexRange;
 
@@ -31,6 +34,7 @@ namespace Perception
         public void OnCreate(ref SystemState state)
         {
             _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagHearingReceiver>().WithNone<BufferHearingPerceive>().Build();
+            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentTeamFilter>().Build();
 
             _querySources = SystemAPI.QueryBuilder().WithAll<TagHearingSource>().Build();
 
@@ -42,9 +46,11 @@ namespace Perception
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentHearingPosition>(isReadOnly: true);
             _handleMemory = SystemAPI.GetComponentTypeHandle<ComponentHearingMemory>(isReadOnly: true);
+            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentTeamFilter>(isReadOnly: true);
 
             _lookupPosition = SystemAPI.GetComponentLookup<ComponentHearingPosition>(isReadOnly: true);
             _lookupRadius = SystemAPI.GetComponentLookup<ComponentHearingRadius>(isReadOnly: true);
+            _lookupFilter = SystemAPI.GetComponentLookup<ComponentTeamFilter>(isReadOnly: true);
         }
 
         [BurstCompile]
@@ -62,6 +68,11 @@ namespace Perception
                 commands.AddBuffer<BufferHearingPerceive>(receiver);
             }
 
+            foreach (var entity in _queryWithoutFilter.ToEntityArray(Allocator.Temp))
+            {
+                commands.AddComponent(entity, new ComponentTeamFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
+            }
+
             commands.Playback(state.EntityManager);
 
             _handleBufferPerceive.Update(ref state);
@@ -69,17 +80,19 @@ namespace Perception
 
             _handlePosition.Update(ref state);
             _handleMemory.Update(ref state);
+            _handleFilter.Update(ref state);
 
             _lookupPosition.Update(ref state);
             _lookupRadius.Update(ref state);
+            _lookupFilter.Update(ref state);
 
             var sources = _querySources.ToEntityArray(Allocator.TempJob);
-            var sourcesReadOnly = sources.AsReadOnly();
 
             var commonHandles = new CommonHandles
             {
-                HandlePosition = _handlePosition,
-                LookupPosition = _lookupPosition, LookupRadius = _lookupRadius, Sources = sourcesReadOnly,
+                HandlePosition = _handlePosition, HandleFilter = _handleFilter,
+                LookupPosition = _lookupPosition, LookupRadius = _lookupRadius, LookupFilter = _lookupFilter,
+                Sources = sources.AsReadOnly(),
             };
 
             var ranges = new NativeArray<int2>(2, Allocator.Temp);
@@ -141,7 +154,7 @@ namespace Perception
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
-                    arrays.Get(i, out var position);
+                    arrays.Get(i, out var position, out var filter);
 
                     var bufferMemory = buffersMemory[i];
                     var memory = memories[i];
@@ -149,6 +162,11 @@ namespace Perception
 
                     foreach (var source in CommonHandles.Sources)
                     {
+                        if (!filter.CanPerceive(CommonHandles.LookupFilter[source]))
+                        {
+                            continue;
+                        }
+
                         var radius = CommonHandles.LookupRadius[source];
                         var isPerceived = bufferPerceive.Contains(in source, perceiveLength, out var index, out var perceive);
 
@@ -200,12 +218,17 @@ namespace Perception
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
-                    arrays.Get(i, out var position);
+                    arrays.Get(i, out var position, out var filter);
 
                     bufferPerceive.Clear();
 
                     foreach (var source in CommonHandles.Sources)
                     {
+                        if (!filter.CanPerceive(CommonHandles.LookupFilter[source]))
+                        {
+                            continue;
+                        }
+
                         var radius = CommonHandles.LookupRadius[source];
                         var sourcePosition = CommonHandles.LookupPosition[source];
                         var distanceCurrentSquared = math.distancesq(position.Current, sourcePosition.Current);
@@ -224,9 +247,12 @@ namespace Perception
         private struct CommonHandles
         {
             public ComponentTypeHandle<ComponentHearingPosition> HandlePosition;
+            public ComponentTypeHandle<ComponentTeamFilter> HandleFilter;
 
             public ComponentLookup<ComponentHearingPosition> LookupPosition;
             public ComponentLookup<ComponentHearingRadius> LookupRadius;
+            public ComponentLookup<ComponentTeamFilter> LookupFilter;
+
             public NativeArray<Entity>.ReadOnly Sources;
 
             [BurstCompile]
@@ -235,6 +261,7 @@ namespace Perception
                 arrays = new CommonArrays
                 {
                     Positions = chunk.GetNativeArray(ref HandlePosition),
+                    Filters = chunk.GetNativeArray(ref HandleFilter),
                 };
             }
         }
@@ -243,11 +270,13 @@ namespace Perception
         private struct CommonArrays
         {
             public NativeArray<ComponentHearingPosition> Positions;
+            public NativeArray<ComponentTeamFilter> Filters;
 
             [BurstCompile]
-            public void Get(int index, out ComponentHearingPosition position)
+            public void Get(int index, out ComponentHearingPosition position, out ComponentTeamFilter filter)
             {
                 position = Positions[index];
+                filter = Filters[index];
             }
         }
     }
