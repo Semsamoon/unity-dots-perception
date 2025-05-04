@@ -77,11 +77,11 @@ namespace Perception.Editor
             [BurstCompile]
             public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius, in LocalToWorld transform)
             {
-                DebugAdvanced.DrawSphere(position.Current, transform.Rotation, math.sqrt(radius.CurrentSquared), Debug.ColorSourceSphere);
+                DebugAdvanced.DrawSphere(in position.Current, transform.Rotation, math.sqrt(radius.CurrentSquared), in Debug.ColorSourceSphere);
 
                 if (radius.CurrentDuration <= 0)
                 {
-                    DebugAdvanced.DrawSphere(position.Current, transform.Rotation, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
+                    DebugAdvanced.DrawSphere(in position.Current, transform.Rotation, math.sqrt(radius.InternalCurrentSquared), in Debug.ColorSourceInternal);
                 }
             }
         }
@@ -94,11 +94,11 @@ namespace Perception.Editor
             [BurstCompile]
             public void Execute(in ComponentHearingPosition position, in ComponentHearingRadius radius)
             {
-                DebugAdvanced.DrawSphere(position.Current, quaternion.identity, math.sqrt(radius.CurrentSquared), Debug.ColorSourceSphere);
+                DebugAdvanced.DrawSphere(in position.Current, in quaternion.identity, math.sqrt(radius.CurrentSquared), in Debug.ColorSourceSphere);
 
                 if (radius.CurrentDuration <= 0)
                 {
-                    DebugAdvanced.DrawSphere(position.Current, quaternion.identity, math.sqrt(radius.InternalCurrentSquared), Debug.ColorSourceInternal);
+                    DebugAdvanced.DrawSphere(in position.Current, in quaternion.identity, math.sqrt(radius.InternalCurrentSquared), in Debug.ColorSourceInternal);
                 }
             }
         }
@@ -116,12 +116,12 @@ namespace Perception.Editor
                 foreach (var memory in bufferMemory)
                 {
                     UnityEngine.Debug.DrawLine(position.Current, memory.Position, Debug.ColorSourceMemorized);
-                    DebugAdvanced.DrawOctahedron(memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, Debug.ColorSourceMemorized);
+                    DebugAdvanced.DrawOctahedron(in memory.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronSmall, in Debug.ColorSourceMemorized);
 
                     if (LookupPosition.TryGetComponent(memory.Source, out var sourcePosition))
                     {
                         UnityEngine.Debug.DrawLine(memory.Position, sourcePosition.Current, Debug.ColorSourceMemorized);
-                        DebugAdvanced.DrawOctahedron(sourcePosition.Current, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourceMemorized);
+                        DebugAdvanced.DrawOctahedron(in sourcePosition.Current, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourceMemorized);
                     }
                 }
             }
@@ -138,7 +138,7 @@ namespace Perception.Editor
                 foreach (var perceive in bufferPerceive)
                 {
                     UnityEngine.Debug.DrawLine(position.Current, perceive.Position, Debug.ColorSourcePerceived);
-                    DebugAdvanced.DrawOctahedron(perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, Debug.ColorSourcePerceived);
+                    DebugAdvanced.DrawOctahedron(in perceive.Position, Debug.SizeOctahedron * Debug.ScaleOctahedronBig, in Debug.ColorSourcePerceived);
                 }
             }
         }
