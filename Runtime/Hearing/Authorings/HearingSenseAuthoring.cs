@@ -21,7 +21,7 @@ namespace Perception
         [Header("Source Modifiers")]
         [SerializeField] protected float _duration;
 
-        [Header("Common Additions")]
+        [Header("Common")]
         [SerializeField] protected float3 _offset;
         [SerializeField] protected TeamFilterSerializable _teamFilter;
 
