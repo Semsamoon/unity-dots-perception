@@ -37,6 +37,11 @@ namespace Perception
         {
             public override void Bake(SightSenseAuthoring authoring)
             {
+                if (!authoring._isReceiver && !authoring._isSource)
+                {
+                    return;
+                }
+
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
 
                 if (authoring._isReceiver)
@@ -88,32 +93,30 @@ namespace Perception
                     AddComponent(entity, new TagSightSource());
                 }
 
-                if (authoring._isReceiver || authoring._isSource)
+                if ((authoring._isReceiver && math.any(authoring._receiverOffset != float3.zero))
+                    || (authoring._isSource && math.any(authoring._sourceOffset != float3.zero)))
                 {
-                    if (math.any(authoring._receiverOffset != float3.zero) || math.any(authoring._sourceOffset != float3.zero))
+                    AddComponent(entity, new ComponentSightOffset
                     {
-                        AddComponent(entity, new ComponentSightOffset
-                        {
-                            Receiver = authoring._isReceiver ? authoring._receiverOffset : float3.zero,
-                            Source = authoring._isSource ? authoring._sourceOffset : float3.zero,
-                        });
-                    }
+                        Receiver = authoring._isReceiver ? authoring._receiverOffset : float3.zero,
+                        Source = authoring._isSource ? authoring._sourceOffset : float3.zero,
+                    });
+                }
 
-                    if (authoring._children is { Length: > 0 })
+                if (authoring._children is { Length: > 0 })
+                {
+                    AddBuffer<BufferSightChild>(entity);
+
+                    foreach (var child in authoring._children)
                     {
-                        AddBuffer<BufferSightChild>(entity);
-
-                        foreach (var child in authoring._children)
+                        if (child)
                         {
-                            if (child)
-                            {
-                                AppendToBuffer(entity, new BufferSightChild { Value = GetEntity(child, TransformUsageFlags.Dynamic) });
-                            }
+                            AppendToBuffer(entity, new BufferSightChild { Value = GetEntity(child, TransformUsageFlags.Dynamic) });
                         }
                     }
-
-                    AddComponent(entity, new ComponentTeamFilter { BelongsTo = authoring._teamFilter.BelongsTo, Perceives = authoring._teamFilter.Perceives });
                 }
+
+                AddComponent<ComponentTeamFilter>(entity, authoring._teamFilter);
             }
         }
 
