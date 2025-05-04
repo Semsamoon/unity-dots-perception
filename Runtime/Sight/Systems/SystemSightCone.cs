@@ -12,6 +12,7 @@ namespace Perception
     {
         private EntityQuery _queryWithoutPerceive;
         private EntityQuery _queryWithoutCone;
+        private EntityQuery _queryWithoutFilter;
 
         private EntityQuery _querySources;
 
@@ -23,10 +24,12 @@ namespace Perception
 
         private ComponentTypeHandle<ComponentSightPosition> _handlePosition;
         private ComponentTypeHandle<ComponentSightExtend> _handleExtend;
+        private ComponentTypeHandle<ComponentTeamFilter> _handleFilter;
         private ComponentTypeHandle<ComponentSightCone> _handleCone;
         private ComponentTypeHandle<LocalToWorld> _handleTransform;
 
         private ComponentLookup<ComponentSightPosition> _lookupPosition;
+        private ComponentLookup<ComponentTeamFilter> _lookupFilter;
 
         private int2 _chunkIndexRange;
 
@@ -35,6 +38,7 @@ namespace Perception
         {
             _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightPerceive>().Build();
             _queryWithoutCone = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightCone>().Build();
+            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentTeamFilter>().Build();
 
             _querySources = SystemAPI.QueryBuilder().WithAll<TagSightSource>().Build();
 
@@ -46,10 +50,12 @@ namespace Perception
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentSightPosition>(isReadOnly: true);
             _handleExtend = SystemAPI.GetComponentTypeHandle<ComponentSightExtend>(isReadOnly: true);
+            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentTeamFilter>(isReadOnly: true);
             _handleCone = SystemAPI.GetComponentTypeHandle<ComponentSightCone>(isReadOnly: true);
             _handleTransform = SystemAPI.GetComponentTypeHandle<LocalToWorld>(isReadOnly: true);
 
             _lookupPosition = SystemAPI.GetComponentLookup<ComponentSightPosition>(isReadOnly: true);
+            _lookupFilter = SystemAPI.GetComponentLookup<ComponentTeamFilter>(isReadOnly: true);
         }
 
         [BurstCompile]
@@ -72,6 +78,11 @@ namespace Perception
                 commands.AddBuffer<BufferSightPerceive>(receiver);
             }
 
+            foreach (var entity in _queryWithoutFilter.ToEntityArray(Allocator.Temp))
+            {
+                commands.AddComponent(entity, new ComponentTeamFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
+            }
+
             commands.Playback(state.EntityManager);
 
             _handleBufferPerceive.Update(ref state);
@@ -79,18 +90,20 @@ namespace Perception
 
             _handlePosition.Update(ref state);
             _handleExtend.Update(ref state);
+            _handleFilter.Update(ref state);
             _handleCone.Update(ref state);
             _handleTransform.Update(ref state);
 
             _lookupPosition.Update(ref state);
+            _lookupFilter.Update(ref state);
 
             var sources = _querySources.ToEntityArray(Allocator.TempJob);
-            var sourcesReadOnly = sources.AsReadOnly();
 
             var commonHandles = new CommonHandles
             {
-                HandlePosition = _handlePosition, HandleCone = _handleCone, HandleTransform = _handleTransform,
-                LookupPosition = _lookupPosition, Sources = sourcesReadOnly,
+                HandlePosition = _handlePosition, HandleFilter = _handleFilter, HandleCone = _handleCone, HandleTransform = _handleTransform,
+                LookupPosition = _lookupPosition, LookupFilter = _lookupFilter,
+                Sources = sources.AsReadOnly(),
             };
 
             var ranges = new NativeArray<int2>(2, Allocator.Temp);
@@ -152,7 +165,7 @@ namespace Perception
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferCone = buffersCone[i];
-                    arrays.Get(i, out var position, out var cone, out var transform);
+                    arrays.Get(i, out var position, out var filter, out var cone, out var transform);
 
                     var bufferPerceive = buffersPerceive[i];
                     var extend = extends[i];
@@ -161,6 +174,11 @@ namespace Perception
 
                     foreach (var source in CommonHandles.Sources)
                     {
+                        if (!filter.CanPerceive(CommonHandles.LookupFilter[source]))
+                        {
+                            continue;
+                        }
+
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
 
                         if (bufferPerceive.Contains(in source)
@@ -195,12 +213,17 @@ namespace Perception
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferCone = buffersCone[i];
-                    arrays.Get(i, out var position, out var cone, out var transform);
+                    arrays.Get(i, out var position, out var filter, out var cone, out var transform);
 
                     bufferCone.Clear();
 
                     foreach (var source in CommonHandles.Sources)
                     {
+                        if (!filter.CanPerceive(CommonHandles.LookupFilter[source]))
+                        {
+                            continue;
+                        }
+
                         var sourcePosition = CommonHandles.LookupPosition[source].Source;
 
                         if (cone.IsInside(in position.Receiver, in sourcePosition, in transform))
@@ -216,10 +239,13 @@ namespace Perception
         private struct CommonHandles
         {
             public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
+            public ComponentTypeHandle<ComponentTeamFilter> HandleFilter;
             public ComponentTypeHandle<ComponentSightCone> HandleCone;
             public ComponentTypeHandle<LocalToWorld> HandleTransform;
 
             public ComponentLookup<ComponentSightPosition> LookupPosition;
+            public ComponentLookup<ComponentTeamFilter> LookupFilter;
+
             public NativeArray<Entity>.ReadOnly Sources;
 
             [BurstCompile]
@@ -228,6 +254,7 @@ namespace Perception
                 arrays = new CommonArrays
                 {
                     Positions = chunk.GetNativeArray(ref HandlePosition),
+                    Filters = chunk.GetNativeArray(ref HandleFilter),
                     Cones = chunk.GetNativeArray(ref HandleCone),
                     Transforms = chunk.GetNativeArray(ref HandleTransform),
                 };
@@ -238,13 +265,15 @@ namespace Perception
         private struct CommonArrays
         {
             public NativeArray<ComponentSightPosition> Positions;
+            public NativeArray<ComponentTeamFilter> Filters;
             public NativeArray<ComponentSightCone> Cones;
             public NativeArray<LocalToWorld> Transforms;
 
             [BurstCompile]
-            public void Get(int index, out ComponentSightPosition position, out ComponentSightCone cone, out LocalToWorld transform)
+            public void Get(int index, out ComponentSightPosition position, out ComponentTeamFilter filter, out ComponentSightCone cone, out LocalToWorld transform)
             {
                 position = Positions[index];
+                filter = Filters[index];
                 cone = Cones[index];
                 transform = Transforms[index];
             }
