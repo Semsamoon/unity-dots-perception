@@ -23,6 +23,7 @@ namespace Perception
 
         [Header("Common Additions")]
         [SerializeField] protected float3 _offset;
+        [SerializeField] protected TeamFilterSerializable _teamFilter;
 
         public class Baker : Baker<HearingSenseAuthoring>
         {
@@ -66,6 +67,8 @@ namespace Perception
                 {
                     AddComponent(entity, new ComponentHearingOffset { Value = authoring._offset });
                 }
+
+                AddComponent<ComponentTeamFilter>(entity, authoring._teamFilter);
             }
         }
 
