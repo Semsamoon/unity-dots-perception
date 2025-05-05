@@ -7,7 +7,7 @@ using Unity.Physics;
 
 namespace Perception
 {
-    [BurstCompile, UpdateInGroup(typeof(SightSystemGroup)), UpdateAfter(typeof(SystemSightCone)), UpdateAfter(typeof(SystemSightMemory))]
+    [BurstCompile, UpdateInGroup(typeof(FixedSightSystemGroup)), UpdateAfter(typeof(SystemSightCone))]
     public partial struct SystemSightPerceiveSingle : ISystem
     {
         private EntityQuery _queryWithMemoryWithChild;
