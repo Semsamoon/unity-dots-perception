@@ -11,11 +11,12 @@ namespace Perception
         [Header("Receiver Requirements")]
         [SerializeField] protected float _coneRadius;
         [SerializeField] protected float2 _coneAnglesDegrees;
+        [SerializeField] protected float _clipRadius;
 
         [Header("Receiver Modifiers")]
-        [SerializeField] protected float _clipRadius;
         [SerializeField] protected float _extendRadius;
         [SerializeField] protected float2 _extendAnglesDegrees;
+        [SerializeField] protected float _extendClipRadius;
         [SerializeField] protected float3[] _rayOffsets;
         [SerializeField] protected CollisionFilterSerializable _collisionFilter;
 
@@ -57,13 +58,15 @@ namespace Perception
 
                     if (authoring._extendRadius > 0 || math.any(authoring._extendAnglesDegrees > float2.zero))
                     {
-                        var extendRadius = authoring._coneRadius + authoring._extendRadius;
                         var extendAnglesDegrees = authoring._coneAnglesDegrees + authoring._extendAnglesDegrees;
+                        var extendRadius = authoring._coneRadius + authoring._extendRadius;
+                        var extendClipRadius = authoring._clipRadius - authoring._extendClipRadius;
 
                         AddComponent(entity, new ComponentSightExtend
                         {
-                            RadiusSquared = extendRadius * extendRadius,
                             AnglesCos = math.cos(math.radians(extendAnglesDegrees / 2)),
+                            RadiusSquared = extendRadius * extendRadius,
+                            ClipSquared = extendClipRadius * extendClipRadius,
                         });
                     }
 
@@ -134,6 +137,9 @@ namespace Perception
             _extendAnglesDegrees = math.max(new float2(0, 0), _extendAnglesDegrees);
             _extendAnglesDegrees = math.min(new float2(360, 180) - _coneAnglesDegrees, _extendAnglesDegrees);
 
+            _extendClipRadius = math.max(0, _extendClipRadius);
+            _extendClipRadius = math.min(_clipRadius, _extendClipRadius);
+
             _memoryTime = math.max(0, _memoryTime);
         }
 
@@ -151,9 +157,10 @@ namespace Perception
                 var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
                 var position = transform.TransformPoint(_receiverOffset);
 
-                DrawCone(position, transform.rotation, _clipRadius, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
+                DrawCone(position, transform.rotation, _clipRadius - _extendClipRadius, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
+                DrawCone(position, transform.rotation, 0, _clipRadius - _extendClipRadius, extendHalfAngles, Color.gray);
                 DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
-                DrawCone(position, transform.rotation, 0, _clipRadius, extendHalfAngles, Color.gray);
+                DrawCone(position, transform.rotation, 0, _clipRadius, coneHalfAngles, Color.gray);
             }
 
             if (_isSource)
