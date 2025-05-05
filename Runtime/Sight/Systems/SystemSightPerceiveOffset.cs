@@ -39,13 +39,13 @@ namespace Perception
             state.RequireForUpdate<PhysicsWorldSingleton>();
 
             _queryWithMemoryWithChild = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightRayMultiple, BufferSightRayOffset>()
-                .WithAll<BufferSightChild, ComponentSightMemory>().Build();
+                .WithAll<BufferSightChild, BufferSightMemory>().Build();
             _queryWithMemory = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightRayMultiple, BufferSightRayOffset>()
-                .WithAll<ComponentSightMemory>().WithNone<BufferSightChild>().Build();
+                .WithAll<BufferSightMemory>().WithNone<BufferSightChild>().Build();
             _queryWithChild = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightRayMultiple, BufferSightRayOffset>()
-                .WithAll<BufferSightChild>().WithNone<ComponentSightMemory>().Build();
+                .WithAll<BufferSightChild>().WithNone<BufferSightMemory>().Build();
             _query = SystemAPI.QueryBuilder().WithAll<TagSightReceiver, TagSightRayMultiple, BufferSightRayOffset>()
-                .WithNone<BufferSightChild, ComponentSightMemory>().Build();
+                .WithNone<BufferSightChild, BufferSightMemory>().Build();
 
             _handleEntity = SystemAPI.GetEntityTypeHandle();
 
