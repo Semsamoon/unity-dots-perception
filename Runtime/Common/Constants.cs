@@ -13,5 +13,7 @@ namespace Perception
         public static readonly Color ColorPurple = new(0.6f, 0.2f, 0.6f);
 
         public static readonly float3 StretchedShape = new(0.5f, 1, 0.5f);
+
+        public const float Epsilon = 0.001f;
     }
 }

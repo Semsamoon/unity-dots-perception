@@ -174,52 +174,63 @@ namespace Perception
 
         public static void DrawCone(float3 position, quaternion rotation, float clip, float radius, float2 halfAnglesRadians, Color color, int sparsity = 1000)
         {
+            if (color.a == 0)
+            {
+                return;
+            }
+
             var halfAngleX = halfAnglesRadians.x;
             var halfAngleY = halfAnglesRadians.y;
 
-            var eulerAngles = new float3x4(
-                new float3(halfAngleY, halfAngleX, 0),
-                new float3(-halfAngleY, halfAngleX, 0),
-                new float3(halfAngleY, -halfAngleX, 0),
-                new float3(-halfAngleY, -halfAngleX, 0));
-
-            for (var i = 0; i < 4; i++)
+            if (radius - clip > Constants.Epsilon)
             {
-                var quaternion = Unity.Mathematics.quaternion.Euler(eulerAngles[i]);
-                var start = math.rotate(rotation, math.rotate(quaternion, new float3(0, 0, clip)));
-                var end = math.rotate(rotation, math.rotate(quaternion, new float3(0, 0, radius)));
+                var eulerAngles = new float3x4(
+                    new float3(halfAngleY, halfAngleX, 0),
+                    new float3(-halfAngleY, halfAngleX, 0),
+                    new float3(halfAngleY, -halfAngleX, 0),
+                    new float3(-halfAngleY, -halfAngleX, 0));
 
-                Debug.DrawLine(position + start, position + end, color);
-            }
-
-            var offsetY = math.sin(halfAngleY) * radius + radius;
-            var radiusY = math.sqrt(2 * radius * math.abs(offsetY) - offsetY * offsetY);
-            var verticalsOffset = math.rotate(rotation, new Vector3(0, offsetY - radius, 0));
-
-            DebugAdvanced.DrawCurve(position + verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
-            DebugAdvanced.DrawCurve(position - verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
-
-            if (halfAngleY > 0.5f)
-            {
-                DebugAdvanced.DrawCurve(in position, in rotation, radius, halfAngleX * 2, in color, sparsity);
-            }
-
-            var segments = (int)(halfAngleX * radius / 1000) + (int)halfAngleX + 1;
-            var segmentsEulerAngles = new float3x2(new float3(0, halfAngleY, 0), new float3(0, -halfAngleY, 0));
-
-            for (var i = 0; i <= segments; i++)
-            {
-                var angle = math.lerp(-halfAngleX, halfAngleX, (float)i / segments);
-                var quaternion = math.mul(rotation, Unity.Mathematics.quaternion.Euler(0, angle, math.PIHALF));
-
-                DebugAdvanced.DrawCurve(in position, in quaternion, radius, halfAngleY * 2, in color, sparsity);
-
-                for (var j = 0; j < 2; j++)
+                for (var i = 0; i < 4; i++)
                 {
-                    var end = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, radius)));
-                    var start = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, clip)));
+                    var quaternion = Unity.Mathematics.quaternion.Euler(eulerAngles[i]);
+                    var start = math.rotate(rotation, math.rotate(quaternion, new float3(0, 0, clip)));
+                    var end = math.rotate(rotation, math.rotate(quaternion, new float3(0, 0, radius)));
 
                     Debug.DrawLine(position + start, position + end, color);
+                }
+            }
+
+            if (radius > Constants.Epsilon && halfAngleX + halfAngleY > Constants.Epsilon)
+            {
+                var offsetY = math.sin(halfAngleY) * radius + radius;
+                var radiusY = math.sqrt(2 * radius * math.abs(offsetY) - offsetY * offsetY);
+                var verticalsOffset = math.rotate(rotation, new Vector3(0, offsetY - radius, 0));
+
+                DebugAdvanced.DrawCurve(position + verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
+                DebugAdvanced.DrawCurve(position - verticalsOffset, in rotation, radiusY, halfAngleX * 2, in color, sparsity);
+
+                if (halfAngleY > 0.5f)
+                {
+                    DebugAdvanced.DrawCurve(in position, in rotation, radius, halfAngleX * 2, in color, sparsity);
+                }
+
+                var segments = (int)(halfAngleX * radius / 1000) + (int)halfAngleX + 1;
+                var segmentsEulerAngles = new float3x2(new float3(0, halfAngleY, 0), new float3(0, -halfAngleY, 0));
+
+                for (var i = 0; i <= segments; i++)
+                {
+                    var angle = math.lerp(-halfAngleX, halfAngleX, (float)i / segments);
+                    var quaternion = math.mul(rotation, Unity.Mathematics.quaternion.Euler(0, angle, math.PIHALF));
+
+                    DebugAdvanced.DrawCurve(in position, in quaternion, radius, halfAngleY * 2, in color, sparsity);
+
+                    for (var j = 0; j < 2; j++)
+                    {
+                        var end = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, radius)));
+                        var start = math.rotate(quaternion, math.rotate(quaternion.Euler(segmentsEulerAngles[j]), new float3(0, 0, clip)));
+
+                        Debug.DrawLine(position + start, position + end, color);
+                    }
                 }
             }
         }

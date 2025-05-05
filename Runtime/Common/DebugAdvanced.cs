@@ -11,6 +11,11 @@ namespace Perception
         [BurstCompile]
         public static void DrawCurve(in float3 center, in quaternion rotation, float radius, float angleRadians, in Color color, float sparsity = 1000)
         {
+            if (radius < Constants.Epsilon || angleRadians < Constants.Epsilon || color.a == 0)
+            {
+                return;
+            }
+
             var halfAngle = angleRadians / 2;
             var segments = (int)(halfAngle * radius / sparsity) + 32;
 
@@ -37,6 +42,11 @@ namespace Perception
         [BurstCompile]
         public static void DrawOctahedron(in float3 center, in float3 size, in Color color)
         {
+            if (size.x + size.y + size.z < Constants.Epsilon || color.a == 0)
+            {
+                return;
+            }
+
             var verticalPoint = new float3(0, size.y / 2, 0);
 
             var horizontalPoints = new float3x4(
