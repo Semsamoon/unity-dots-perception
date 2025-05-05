@@ -28,6 +28,8 @@ namespace Perception
 
         private BufferLookup<BufferSightChild> _lookupBufferChild;
 
+        private ComponentLookup<ComponentSightExtend> _lookupExtend;
+
         private int2 _chunkIndexRange;
 
         [BurstCompile]
@@ -52,6 +54,8 @@ namespace Perception
             _handleCone = SystemAPI.GetComponentTypeHandle<ComponentSightCone>(isReadOnly: true);
 
             _lookupBufferChild = SystemAPI.GetBufferLookup<BufferSightChild>(isReadOnly: true);
+
+            _lookupExtend = SystemAPI.GetComponentLookup<ComponentSightExtend>(isReadOnly: true);
         }
 
         [BurstCompile]
@@ -75,6 +79,8 @@ namespace Perception
 
             _lookupBufferChild.Update(ref state);
 
+            _lookupExtend.Update(ref state);
+
             ref readonly var physics = ref SystemAPI.GetSingletonRW<PhysicsWorldSingleton>().ValueRO;
 
             var commonHandles = new CommonHandles
@@ -83,6 +89,7 @@ namespace Perception
                 HandleBufferCone = _handleBufferCone,
                 HandlePosition = _handlePosition, HandleCone = _handleCone,
                 LookupBufferChild = _lookupBufferChild,
+                LookupExtend = _lookupExtend,
                 CollisionWorld = physics.CollisionWorld,
             };
 
@@ -132,11 +139,11 @@ namespace Perception
 
         [BurstCompile]
         public static void CastRay(in Entity receiver, in float3 position, in DynamicBuffer<BufferSightChild> bufferChild,
-            in float3 sourcePosition, in ComponentSightCone cone, ref CollisionWorld collisionWorld, out Entity hit)
+            in float3 sourcePosition, float clipSquared, in CollisionFilter filter, ref CollisionWorld collisionWorld, out Entity hit)
         {
-            var clipFraction = cone.ClipSquared / math.distancesq(sourcePosition, position);
+            var clipFraction = clipSquared / math.distancesq(sourcePosition, position);
             var collector = new CollectorClosestIgnoreEntityAndChildWithClip(receiver, bufferChild, clipFraction);
-            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = cone.Filter };
+            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = filter };
 
             collisionWorld.CastRay(raycast, ref collector);
             hit = collector.Hit.Entity;
@@ -144,11 +151,11 @@ namespace Perception
 
         [BurstCompile]
         public static void CastRay(in Entity receiver, in float3 position,
-            in float3 sourcePosition, in ComponentSightCone cone, ref CollisionWorld collisionWorld, out Entity hit)
+            in float3 sourcePosition, float clipSquared, in CollisionFilter filter, ref CollisionWorld collisionWorld, out Entity hit)
         {
-            var clipFraction = cone.ClipSquared / math.distancesq(sourcePosition, position);
+            var clipFraction = clipSquared / math.distancesq(sourcePosition, position);
             var collector = new CollectorClosestIgnoreEntityWithClip(receiver, clipFraction);
-            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = cone.Filter };
+            var raycast = new RaycastInput { Start = position, End = sourcePosition, Filter = filter };
 
             collisionWorld.CastRay(raycast, ref collector);
             hit = collector.Hit.Entity;
@@ -207,10 +214,13 @@ namespace Perception
                 var buffersChild = chunk.GetBufferAccessor(ref HandleBufferChild);
                 var memories = chunk.GetNativeArray(ref HandleMemory);
 
+                if (buffersPerceive.Length == 0) return;
+
                 for (var i = 0; i < chunk.Count; i++)
                 {
                     var bufferPerceive = buffersPerceive[i];
                     arrays.Get(i, out var receiver, out var bufferCone, out var position, out var cone);
+                    var hasExtend = CommonHandles.LookupExtend.TryGetComponent(receiver, out var extend);
 
                     var bufferMemory = buffersMemory[i];
                     var bufferChild = buffersChild[i];
@@ -220,13 +230,15 @@ namespace Perception
                     foreach (var elementCone in bufferCone)
                     {
                         var isPerceived = bufferPerceive.Contains(in elementCone.Source, perceiveLength, out var index, out var perceive);
+                        var clipSquared = isPerceived && hasExtend ? extend.ClipSquared : cone.ClipSquared;
 
                         if (isPerceived)
                         {
                             bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
-                        CastRay(in receiver, in position.Receiver, in bufferChild, in elementCone.Position, in cone, ref CommonHandles.CollisionWorld, out var hit);
+                        CastRay(in receiver, in position.Receiver, in bufferChild, in elementCone.Position,
+                            clipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
                         if (!ProcessHit(in hit, in elementCone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
                             bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
@@ -266,6 +278,7 @@ namespace Perception
                 {
                     var bufferPerceive = buffersPerceive[i];
                     arrays.Get(i, out var receiver, out var bufferCone, out var position, out var cone);
+                    var hasExtend = CommonHandles.LookupExtend.TryGetComponent(receiver, out var extend);
 
                     var bufferMemory = buffersMemory[i];
                     var memory = memories[i];
@@ -274,13 +287,15 @@ namespace Perception
                     foreach (var elementCone in bufferCone)
                     {
                         var isPerceived = bufferPerceive.Contains(in elementCone.Source, perceiveLength, out var index, out var perceive);
+                        var clipSquared = isPerceived && hasExtend ? extend.ClipSquared : cone.ClipSquared;
 
                         if (isPerceived)
                         {
                             bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
                         }
 
-                        CastRay(in receiver, in position.Receiver, in elementCone.Position, in cone, ref CommonHandles.CollisionWorld, out var hit);
+                        CastRay(in receiver, in position.Receiver, in elementCone.Position,
+                            clipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
                         if (!ProcessHit(in hit, in elementCone, ref bufferPerceive, ref bufferMemory, ref CommonHandles.LookupBufferChild) && isPerceived)
                         {
                             bufferMemory.Add(new BufferSightMemory { Position = perceive.Position, Source = perceive.Source, Time = memory.Time });
@@ -321,11 +336,39 @@ namespace Perception
 
                     var bufferChild = buffersChild[i];
 
+                    if (CommonHandles.LookupExtend.TryGetComponent(receiver, out var extend))
+                    {
+                        var perceiveLength = bufferPerceive.Length;
+
+                        foreach (var elementCone in bufferCone)
+                        {
+                            var isPerceived = bufferPerceive.Contains(in elementCone.Source, perceiveLength, out var index, out _);
+                            var clipSquared = isPerceived ? extend.ClipSquared : cone.ClipSquared;
+
+                            if (isPerceived)
+                            {
+                                bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
+                            }
+
+                            CastRay(in receiver, in position.Receiver, bufferChild, in elementCone.Position,
+                                clipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
+                            ProcessHit(in hit, in elementCone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
+                        }
+
+                        if (perceiveLength > 0)
+                        {
+                            bufferPerceive.RemoveRangeSwapBack(0, perceiveLength);
+                        }
+
+                        continue;
+                    }
+
                     bufferPerceive.Clear();
 
                     foreach (var elementCone in bufferCone)
                     {
-                        CastRay(in receiver, in position.Receiver, bufferChild, in elementCone.Position, in cone, ref CommonHandles.CollisionWorld, out var hit);
+                        CastRay(in receiver, in position.Receiver, bufferChild, in elementCone.Position,
+                            cone.ClipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
                         ProcessHit(in hit, in elementCone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
@@ -355,11 +398,39 @@ namespace Perception
                     var bufferPerceive = buffersPerceive[i];
                     arrays.Get(i, out var receiver, out var bufferCone, out var position, out var cone);
 
+                    if (CommonHandles.LookupExtend.TryGetComponent(receiver, out var extend))
+                    {
+                        var perceiveLength = bufferPerceive.Length;
+
+                        foreach (var elementCone in bufferCone)
+                        {
+                            var isPerceived = bufferPerceive.Contains(in elementCone.Source, perceiveLength, out var index, out _);
+                            var clipSquared = isPerceived ? extend.ClipSquared : cone.ClipSquared;
+
+                            if (isPerceived)
+                            {
+                                bufferPerceive.RemoveAtSwapBack(index, --perceiveLength);
+                            }
+
+                            CastRay(in receiver, in position.Receiver, in elementCone.Position,
+                                clipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
+                            ProcessHit(in hit, in elementCone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
+                        }
+
+                        if (perceiveLength > 0)
+                        {
+                            bufferPerceive.RemoveRangeSwapBack(0, perceiveLength);
+                        }
+
+                        continue;
+                    }
+
                     bufferPerceive.Clear();
 
                     foreach (var elementCone in bufferCone)
                     {
-                        CastRay(in receiver, in position.Receiver, in elementCone.Position, in cone, ref CommonHandles.CollisionWorld, out var hit);
+                        CastRay(in receiver, in position.Receiver, in elementCone.Position,
+                            cone.ClipSquared, in cone.Filter, ref CommonHandles.CollisionWorld, out var hit);
                         ProcessHit(in hit, in elementCone, ref bufferPerceive, ref CommonHandles.LookupBufferChild);
                     }
                 }
@@ -377,6 +448,8 @@ namespace Perception
             public ComponentTypeHandle<ComponentSightCone> HandleCone;
 
             public BufferLookup<BufferSightChild> LookupBufferChild;
+
+            public ComponentLookup<ComponentSightExtend> LookupExtend;
 
             public CollisionWorld CollisionWorld;
 

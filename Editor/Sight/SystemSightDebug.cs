@@ -79,15 +79,17 @@ namespace Perception.Editor
             [BurstCompile]
             public void Execute(in ComponentSightPosition position, in ComponentSightCone cone, in LocalToWorld transform, in ComponentSightExtend extend)
             {
+                var angles = math.acos(cone.AnglesCos);
                 var radius = math.sqrt(cone.RadiusSquared);
                 var clip = math.sqrt(cone.ClipSquared);
-                var angles = math.acos(cone.AnglesCos);
-                var extendRadius = math.sqrt(extend.RadiusSquared);
                 var extendAngles = math.acos(extend.AnglesCos);
+                var extendRadius = math.sqrt(extend.RadiusSquared);
+                var extendClip = math.sqrt(extend.ClipSquared);
 
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, extendRadius, extendAngles, Debug.ColorReceiverExtend);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, extendClip, extendRadius, extendAngles, Debug.ColorReceiverExtend);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendClip, extendAngles, Debug.ColorReceiverClip);
                 SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, radius, angles, Debug.ColorReceiverCone);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, extendAngles, Debug.ColorReceiverClip);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, angles, Debug.ColorReceiverClip);
             }
         }
 
