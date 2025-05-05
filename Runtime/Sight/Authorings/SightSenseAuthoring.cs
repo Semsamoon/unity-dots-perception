@@ -158,9 +158,9 @@ namespace Perception
                 var position = transform.TransformPoint(_receiverOffset);
 
                 DrawCone(position, transform.rotation, _clipRadius - _extendClipRadius, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
-                DrawCone(position, transform.rotation, 0, _clipRadius - _extendClipRadius, extendHalfAngles, Color.gray);
+                DrawCone(position, transform.rotation, _clipRadius - _extendClipRadius, _clipRadius - _extendClipRadius, extendHalfAngles, Color.yellow);
                 DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
-                DrawCone(position, transform.rotation, 0, _clipRadius, coneHalfAngles, Color.gray);
+                DrawCone(position, transform.rotation, _clipRadius, _clipRadius, coneHalfAngles, Color.green);
             }
 
             if (_isSource)

@@ -87,9 +87,9 @@ namespace Perception.Editor
                 var extendClip = math.sqrt(extend.ClipSquared);
 
                 SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, extendClip, extendRadius, extendAngles, Debug.ColorReceiverExtend);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, extendClip, extendAngles, Debug.ColorReceiverClip);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, extendClip, extendClip, extendAngles, Debug.ColorReceiverExtend);
                 SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, radius, angles, Debug.ColorReceiverCone);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, angles, Debug.ColorReceiverClip);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, clip, angles, Debug.ColorReceiverCone);
             }
         }
 
@@ -106,7 +106,7 @@ namespace Perception.Editor
                 var angles = math.acos(cone.AnglesCos);
 
                 SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, radius, angles, Debug.ColorReceiverCone);
-                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, 0, clip, angles, Debug.ColorReceiverClip);
+                SightSenseAuthoring.DrawCone(position.Receiver, transform.Rotation, clip, clip, angles, Debug.ColorReceiverCone);
             }
         }
 

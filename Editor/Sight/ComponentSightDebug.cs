@@ -12,7 +12,6 @@ namespace Perception.Editor
     {
         public Color ColorReceiverCone;
         public Color ColorReceiverExtend;
-        public Color ColorReceiverClip;
 
         public Color ColorSourcePerceived;
         public Color ColorSourceMemorized;
@@ -26,7 +25,6 @@ namespace Perception.Editor
         {
             ColorReceiverCone = Color.green,
             ColorReceiverExtend = Color.yellow,
-            ColorReceiverClip = Color.gray,
 
             ColorSourcePerceived = Color.green,
             ColorSourceMemorized = Color.yellow,
