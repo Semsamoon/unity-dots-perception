@@ -12,18 +12,19 @@ namespace Perception
     {
         public float2 AnglesCos;
         public float RadiusSquared;
+        public float ClipSquared;
     }
 
     [BurstCompile]
     public static class ComponentSightExtendExtensions
     {
         [BurstCompile]
-        public static bool IsInside(this in ComponentSightExtend extend, in float3 origin, in float3 target, in LocalToWorld transform, float clipSquared = 0)
+        public static bool IsInside(this in ComponentSightExtend extend, in float3 origin, in float3 target, in LocalToWorld transform)
         {
             var difference = target - origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > extend.RadiusSquared || distanceSquared < clipSquared)
+            if (distanceSquared > extend.RadiusSquared || distanceSquared < extend.ClipSquared)
             {
                 return false;
             }
