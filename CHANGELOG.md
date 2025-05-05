@@ -4,6 +4,112 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2025-05-05
+
+### Added
+
+- Dependencies to Package file.
+- Clip radius in sight extend component.
+- Usage of sight extend component's clip radius in authoring and systems.
+
+### Changed
+
+- Update sight clip debug to improve visibility.
+- Extract constants into Constants static class.
+- Draw shapes with gizmos only when sizes are not too small to improve performance.
+
+### Fixed
+
+- Update perception system group after transform system group.
+
+## [0.5.5] - 2025-05-04
+
+### Added
+
+- Team filter's extensions to simplify frequent operations.
+- Usage of team filter in hearing authoring, sight cone and hearing perceive systems.
+
+### Changed
+
+- Use burst compiler and DEBUG conditionals in advanced debug's methods.
+- Move serializable collision filter from Sight folder to Common.
+- Rename Sight Filter to Team Filter and move it from Sight folder to Common.
+- Reduce nesting in sight authoring and update common headers in sight and hearing authoring.
+
+## [0.5.4] - 2025-05-04
+
+### Added
+
+- Sight team filter component with XML documentation.
+- Serializable sight team filter struct with custom attribute and drawer for mask.
+- Usage of sight team filter component in authoring.
+
+### Changed
+
+- Merge sight clip and filter components with cone component for simplicity.
+  Use merged sight cone component in systems, authoring and tests.
+- Merge hearing duration component with sphere and radius components for simplicity.
+  Use merged hearing sphere and radius components in systems, authoring and tests.
+- Rename Debug folder to Common and use it for team filter.
+
+### Fixed
+
+- Set world position to hearing position component in authoring if it has no transform component.
+
+## [0.5.3] - 2025-05-03
+
+### Added
+
+- Hearing limit component with XML documentation.
+- Usage of hearing limit component in hearing systems to improve performance.
+- Collision filter serialization in sight receiver authoring.
+
+### Fixed
+
+- Raise delay in hearing tests up to 0.1 seconds.
+- Add transform component to queries in hearing position system.
+
+## [0.5.2] - 2025-05-02
+
+### Added
+
+- Hearing components' extensions to simplify frequent operations.
+
+### Changed
+
+- Improve performance of hearing position, memory, sphere, perceive and debug systems with jobs.
+- Remove unnecessary components in sight debug system's queries.
+- Rename jobs in sight debug system.
+
+### Fixed
+
+- Check source existence in hearing and sight debug systems before using it from memory buffer.
+
+## [0.5.1] - 2025-05-01
+
+### Added
+
+- Advanced debug draw sphere.
+- Hearing authoring gizmos and custom editor.
+- Hearing debug tag and debug settings component with XML documentation.
+- Hearing debug system.
+
+### Changed
+
+- Shorten sight debug system's jobs for sources.
+
+## [0.5.0] - 2025-04-30
+
+### Added
+
+- Hearing system group inside perception system group.
+- Place hearing systems into hearing system group.
+- Hearing receiver and source authoring.
+
+### Changed
+
+- Reorder settings and rename sections' headers in sight authoring.
+
 ## [0.4.3] - 2025-04-29
 
 ### Added
@@ -67,7 +173,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Perception system group with sight system group inside.
 - Place sight systems to sight system group.
-- Sight components' and buffers' extensions to simplify often operations.
+- Sight components' and buffers' extensions to simplify frequent operations.
 - Usage of sight components' and buffers' extensions in sight systems to shorten.
 
 ### Changed
