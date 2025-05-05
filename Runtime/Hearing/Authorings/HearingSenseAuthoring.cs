@@ -94,15 +94,15 @@ namespace Perception
             {
                 var transform = this.transform;
                 var position = transform.TransformPoint(_offset);
-                DebugAdvanced.DrawOctahedron(position, new float3(0.25f, 0.5f, 0.25f), Color.blue);
+                DebugAdvanced.DrawOctahedron(position, Constants.StretchedShape * 0.5f, Constants.ColorPurple);
             }
 
             if (_isSource)
             {
                 var transform = this.transform;
                 var position = transform.TransformPoint(_offset);
-                DebugAdvanced.DrawSphere(position, transform.rotation, math.max(0, _maxRange - _speed * math.max(0, _duration)), Color.red);
-                DebugAdvanced.DrawSphere(position, transform.rotation, _maxRange, Color.green);
+                DebugAdvanced.DrawSphere(position, transform.rotation, math.max(0, _maxRange - _speed * math.max(0, _duration)), Constants.ColorBlue);
+                DebugAdvanced.DrawSphere(position, transform.rotation, _maxRange, Constants.ColorCyan);
             }
         }
 #endif

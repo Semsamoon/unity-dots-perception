@@ -23,14 +23,14 @@ namespace Perception.Editor
 
         public static ComponentSightDebug Default => new()
         {
-            ColorReceiverCone = Color.green,
-            ColorReceiverExtend = Color.yellow,
+            ColorReceiverCone = Constants.ColorCyan,
+            ColorReceiverExtend = Constants.ColorBlue,
 
-            ColorSourcePerceived = Color.green,
-            ColorSourceMemorized = Color.yellow,
-            ColorSourceHidden = Color.red,
+            ColorSourcePerceived = Constants.ColorGreen,
+            ColorSourceMemorized = Constants.ColorOrange,
+            ColorSourceHidden = Constants.ColorRed,
 
-            SizeOctahedron = new float3(0.5f, 1, 0.5f),
+            SizeOctahedron = Constants.StretchedShape,
             ScaleOctahedronBig = 0.5f,
             ScaleOctahedronSmall = 0.25f,
         };

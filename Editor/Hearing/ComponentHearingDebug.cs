@@ -22,13 +22,13 @@ namespace Perception.Editor
 
         public static ComponentHearingDebug Default => new()
         {
-            ColorSourceSphere = Color.green,
-            ColorSourceInternal = Color.red,
+            ColorSourceSphere = Constants.ColorCyan,
+            ColorSourceInternal = Constants.ColorBlue,
 
-            ColorSourcePerceived = Color.green,
-            ColorSourceMemorized = Color.yellow,
+            ColorSourcePerceived = Constants.ColorGreen,
+            ColorSourceMemorized = Constants.ColorOrange,
 
-            SizeOctahedron = new float3(0.5f, 1, 0.5f),
+            SizeOctahedron = Constants.StretchedShape,
             ScaleOctahedronBig = 0.5f,
             ScaleOctahedronSmall = 0.25f,
         };

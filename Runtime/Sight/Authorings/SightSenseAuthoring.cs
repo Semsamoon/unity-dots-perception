@@ -155,19 +155,20 @@ namespace Perception
                 var transform = this.transform;
                 var coneHalfAngles = math.radians(_coneAnglesDegrees) / 2;
                 var extendHalfAngles = math.radians(_coneAnglesDegrees + _extendAnglesDegrees) / 2;
+                var extendClipRadius = _clipRadius - _extendClipRadius;
                 var position = transform.TransformPoint(_receiverOffset);
 
-                DrawCone(position, transform.rotation, _clipRadius - _extendClipRadius, _coneRadius + _extendRadius, extendHalfAngles, Color.yellow);
-                DrawCone(position, transform.rotation, _clipRadius - _extendClipRadius, _clipRadius - _extendClipRadius, extendHalfAngles, Color.yellow);
-                DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Color.green);
-                DrawCone(position, transform.rotation, _clipRadius, _clipRadius, coneHalfAngles, Color.green);
+                DrawCone(position, transform.rotation, extendClipRadius, _coneRadius + _extendRadius, extendHalfAngles, Constants.ColorBlue);
+                DrawCone(position, transform.rotation, extendClipRadius, extendClipRadius, extendHalfAngles, Constants.ColorBlue);
+                DrawCone(position, transform.rotation, _clipRadius, _coneRadius, coneHalfAngles, Constants.ColorCyan);
+                DrawCone(position, transform.rotation, _clipRadius, _clipRadius, coneHalfAngles, Constants.ColorCyan);
             }
 
             if (_isSource)
             {
                 var transform = this.transform;
                 var position = transform.TransformPoint(_sourceOffset);
-                DebugAdvanced.DrawOctahedron(position, new float3(0.25f, 0.5f, 0.25f), Color.blue);
+                DebugAdvanced.DrawOctahedron(position, Constants.StretchedShape * 0.5f, Constants.ColorPurple);
             }
         }
 
