@@ -26,10 +26,10 @@ namespace Perception
         public void OnCreate(ref SystemState state)
         {
             _queryWithoutPosition = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentHearingPosition>().Build();
-            _queryWithoutTransform = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver>().WithNone<LocalToWorld>().Build();
+            _queryWithoutTransform = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<LocalToWorld>().Build();
 
-            _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<LocalToWorld, ComponentHearingOffset>().Build();
-            _query = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<LocalToWorld>().WithNone<ComponentHearingOffset>().Build();
+            _queryWithOffset = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithAll<ComponentHearingOffset>().Build();
+            _query = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentHearingOffset>().Build();
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentHearingPosition>();
             _handleOffset = SystemAPI.GetComponentTypeHandle<ComponentHearingOffset>(isReadOnly: true);
@@ -51,9 +51,9 @@ namespace Perception
                 commands.AddComponent(entity, new ComponentHearingPosition());
             }
 
-            foreach (var receiver in _queryWithoutTransform.ToEntityArray(Allocator.Temp))
+            foreach (var entity in _queryWithoutTransform.ToEntityArray(Allocator.Temp))
             {
-                commands.AddComponent(receiver, new LocalToWorld { Value = float4x4.identity });
+                commands.AddComponent(entity, new LocalToWorld { Value = float4x4.identity });
             }
 
             commands.Playback(state.EntityManager);
