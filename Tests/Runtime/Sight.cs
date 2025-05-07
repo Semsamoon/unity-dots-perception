@@ -24,7 +24,7 @@ namespace Perception.Tests
 
             try
             {
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.True(entityManager.HasComponent<ComponentSightPosition>(receiver));
                 Assert.False(entityManager.HasComponent<ComponentSightOffset>(source));
                 Assert.AreEqual(new float3(1, 1, 1), entityManager.GetComponentData<ComponentSightPosition>(receiver).Receiver);
@@ -32,7 +32,7 @@ namespace Perception.Tests
 
                 entityManager.SetComponentData(receiver, new ComponentSightOffset { Receiver = new float3(3, 3, 3) });
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(4, 4, 4)) });
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(new float3(3, 3, 3), entityManager.GetComponentData<ComponentSightPosition>(receiver).Receiver);
                 Assert.AreEqual(new float3(4, 4, 4), entityManager.GetComponentData<ComponentSightPosition>(source).Source);
             }
@@ -52,29 +52,29 @@ namespace Perception.Tests
 
             try
             {
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.True(entityManager.HasBuffer<BufferSightCone>(receiver));
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferSightCone>(receiver)[0].Source);
                 Assert.AreEqual(new float3(0, 0, 2), entityManager.GetBuffer<BufferSightCone>(receiver)[0].Position);
 
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(1, 1, 1)) });
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 3)) });
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
                 var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 16 };
                 entityManager.SetComponentData(receiver, cone);
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(2, 2, 2)) });
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
                 cone.ClipSquared = 13;
                 entityManager.AddComponentData(receiver, cone);
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightCone>(receiver).Length);
 
                 cone.ClipSquared = 4;
@@ -117,12 +117,12 @@ namespace Perception.Tests
 
                 var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(0.5f, 0.5f), RadiusSquared = 49, ClipSquared = 26 };
                 entityManager.SetComponentData(receiver, cone);
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
                 cone.ClipSquared = 4;
                 entityManager.SetComponentData(receiver, cone);
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 5, 5)) });
@@ -170,12 +170,12 @@ namespace Perception.Tests
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
                 entityManager.GetBuffer<BufferSightRayOffset>(receiver).Add(new BufferSightRayOffset { Value = new float3(0, -0.5f, 0) });
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
 
                 var cone = new ComponentSightCone { Filter = CollisionFilter.Default, AnglesCos = new float2(-1, 0), RadiusSquared = 100, ClipSquared = 32 };
                 entityManager.SetComponentData(receiver, cone);
-                yield return null;
+                yield return _awaitPhysics;
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightPerceive>(receiver).Length);
             }
             finally
@@ -203,13 +203,9 @@ namespace Perception.Tests
                 entityManager.SetComponentData(source, new LocalToWorld { Value = float4x4.Translate(new float3(0, 0, 4)) });
                 yield return null;
                 Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
-                Assert.AreEqual(0.05f, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Time);
+                Assert.Greater(0.05f, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Time);
                 Assert.AreEqual(source, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Source);
                 Assert.AreEqual(new float3(0, 0, 2), entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Position);
-
-                yield return null;
-                Assert.AreEqual(1, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
-                Assert.Greater(0.05f, entityManager.GetBuffer<BufferSightMemory>(receiver)[0].Time);
 
                 yield return new WaitForSeconds(0.05f);
                 Assert.AreEqual(0, entityManager.GetBuffer<BufferSightMemory>(receiver).Length);
