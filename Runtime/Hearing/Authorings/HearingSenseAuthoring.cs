@@ -62,7 +62,7 @@ namespace Perception
                     AddComponent(entity, new ComponentHearingOffset { Value = authoring._offset });
                 }
 
-                AddComponent<ComponentTeamFilter>(entity, authoring._teamFilter);
+                AddComponent<ComponentHearingFilter>(entity, authoring._teamFilter);
             }
         }
 
