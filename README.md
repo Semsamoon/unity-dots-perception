@@ -41,7 +41,7 @@ To make an entity a sight receiver, there are four components required:
 
 - `TagSightReceiver` - marks the entity a sight receiver
 - `ComponentSightCone` - specifies the receiver's cone of vision
-- `ComponentTeamFilter` - filters sources from selected teams
+- `ComponentSightFilter` - filters sources from selected teams
 - `TagSightRaySingle` or `TagSightRayMultiple` - defines a way to detect sources
 
 Use the `EntityManager` to add these components and specify their settings:
@@ -73,7 +73,7 @@ entityManager.AddComponent(receiver, new ComponentSightCone
     ClipSquared = 0
 });
 
-entityManager.AddComponent(receiver, new ComponentTeamFilter
+entityManager.AddComponent(receiver, new ComponentSightFilter
 {
     // Mask represents teams of sources [0; 31] receiver can perceive
     // 1 << 0 means the receiver perceives sources from the first team (which index is 0)
@@ -161,7 +161,7 @@ sources for each receiver. They are stored in associated entity buffers:
 > Never modify perception system's buffers if not absolutely sure about safety of the operation.
 > Some data inside buffers is used by framework's systems, and overwriting it may cause errors.
 
-These buffers are added automatically to each entity with `TagSightReceiver` component.
+These buffers are added automatically to each entity with `TagSightReceiver`.
 Get the buffer and iterate over it to proceed custom logic on data:
 
 ```csharp
@@ -189,7 +189,7 @@ foreach (var memory in entityManager.GetBuffer<BufferSightMemory>(receiver))
 To make entity a sight source, there are two components required:
 
 - `TagSightSource` - marks the entity a sight source
-- `ComponentTeamFilter` - specifies team of the source
+- `ComponentSightFilter` - specifies team of the source
 
 And there are one optional component and one optional buffer:
 
@@ -202,7 +202,7 @@ And there are one optional component and one optional buffer:
 
 entityManager.AddComponent(source, new TagSightSource());
 
-entityManager.AddComponent(source, new ComponentTeamFilter
+entityManager.AddComponent(source, new ComponentSightFilter
 {
     // Mask represents teams [0; 31] the source belongs to
     // uint.MaxValue means the source belongs to all the teams
@@ -225,8 +225,8 @@ entityManager.GetBuffer<BufferSightChild>(source).Add(new BufferSightChild
 ```
 
 > [!IMPORTANT]
-> `ComponentTeamFilter` and `ComponentSightOffset` components and `BufferSightChild` are used
-> for both receiver and source, but the fields and values differs. If an entity must be a
+> `ComponentSightFilter`, `ComponentSightOffset`, and `BufferSightChild` are used for
+> both receiver and source, but the fields and values differs. If an entity must be a
 > receiver and a source at the same time, do not forget to fill all fields appropriately.
 
 To simplify creating sight receivers snd sources, there exists a `SightSenseAuthoring` class.
@@ -239,9 +239,9 @@ When the game object is selected, debugging lines display cone of vision and sou
 > both for receiver and source is set to (0, 0, 0), no `ComponentSightOffset` will be attached.
 
 Drawing lines for selected receivers works only in Editor Mode. To enable visual debugging
-lines at runtime, the special enableable component `TagSightDebug` is added automatically
-to each receiver. Enable the component to show the debugging lines and disable to hide.
-This component only exists in Editor and will be stripped when build the project.
+lines at runtime, the special enableable `TagSightDebug` is added automatically to each
+receiver. Enable the component to show the debugging lines and disable to hide. This
+component only exists in Editor and will be stripped when build the project.
 
 > [!CAUTION]
 > All systems use jobs. To avoid flickering, the debugging system forces all jobs to complete.
@@ -254,7 +254,7 @@ This component only exists in Editor and will be stripped when build the project
 To make entity a hearing receiver, there are two components required:
 
 - `TagHearingReceiver` - marks the entity a hearing receiver
-- `ComponentTeamFilter` - filters sources from selected teams
+- `ComponentHearingFilter` - filters sources from selected teams
 
 And there are two optional components:
 
@@ -267,7 +267,7 @@ And there are two optional components:
 
 entityManager.AddComponent(receiver, new TagHearingReceiver());
 
-entityManager.AddComponent(receiver, new ComponentTeamFilter
+entityManager.AddComponent(receiver, new ComponentHearingFilter
 {
     // Mask represents teams of sources [0; 31] receiver can perceive
     Perceives = 1 << 3 | 1 << 5,
@@ -296,7 +296,7 @@ for each hearing receiver are stored in associated entity buffers:
 - `BufferHearingPerceive` - contains perceived sources and their positions
 - `BufferHearingMemory` - contains memorized sources, their last seen positions and keeping durations
 
-These buffers are added automatically to each entity with `TagHearingReceiver` component.
+These buffers are added automatically to each entity with `TagHearingReceiver`.
 Get the buffer and iterate over it to proceed custom logic on data:
 
 ```csharp
@@ -321,7 +321,7 @@ To make entity a hearing source, there are three components required:
 
 - `TagHearingSource` - marks the entity a hearing source
 - `ComponentHearingSphere` - configures sound spherical wave's propagation
-- `ComponentTeamFilter` - specifies team of the source
+- `ComponentHearingFilter` - specifies team of the source
 
 And there is only one optional component:
 
@@ -347,7 +347,7 @@ entityManager.AddComponent(source, new ComponentHearingSphere
     Duration = 0
 });
 
-entityManager.AddComponent(source, new ComponentTeamFilter
+entityManager.AddComponent(source, new ComponentHearingFilter
 {
     // Mask represents teams [0; 31] the source belongs to
     BelongsTo = 1 << 5,
@@ -359,10 +359,6 @@ entityManager.AddComponent(source, new ComponentHearingOffset
     Value = new float3(1, 0, 0),
 });
 ```
-
-> [!NOTE]
-> `ComponentTeamFilter` is common for both sight and hearing senses.
-> Its filtering layers are always applied to all senses on the entity.
 
 > [!NOTE]
 > `ComponentHearingOffset` differs from `ComponentSightOffset` because
@@ -385,9 +381,9 @@ To set duration equal to *infinity*, set negative value to its authoring class' 
 -1). When the game object is selected, debugging lines display receiver's position and sound wave.
 
 Drawing lines for selected receivers and sources works only in Editor Mode. To enable visuals
-at runtime, the special enableable component `TagHearingDebug` is added automatically to each
-receiver and source. Enable the component to show the debugging lines and disable to hide.
-This component only exists in Editor and will be stripped when build the project.
+at runtime, the special enableable `TagHearingDebug` is added automatically to each receiver
+and source. Enable the component to show the debugging lines and disable to hide. This
+component only exists in Editor and will be stripped when build the project.
 
 > [!IMPORTANT]
 > All remarks about according components, buffers and authoring about
@@ -402,8 +398,8 @@ To make the systems work, a few internal components and buffers are added automa
 - `ComponentSightPosition` - stores total world-space receiver's and source's position
 
 Position component is added to apply position modifications, such as with
-`ComponentSightOffset` component. This also allows to overwrite receiver's or
-source's position from user's systems without need to edit built-in systems.
+`ComponentSightOffset`. This also allows to overwrite receiver's or source's
+position from user's systems without need to edit built-in systems.
 
 ```csharp
 public struct ComponentSightPosition
@@ -464,10 +460,10 @@ All framework's systems update in special system groups in the following order:
     - `FixedSightSystemGroup` - group for sight systems that should update with a fixed time step
 
         - `SystemSightPosition` - calculates current `ComponentSightPosition` values
-        - `SystemSightCone` - fills `BufferSightCone` buffers with sources inside the cones of vision
-        - `SystemSightPerceiveSingle` - fills `BufferSightPerceive` and `BufferSightMemory` buffers
+        - `SystemSightCone` - fills `BufferSightCone` with sources inside the cone of vision
+        - `SystemSightPerceiveSingle` - fills `BufferSightPerceive` and `BufferSightMemory`
           after the single-ray casting
-        - `SystemSightPerceiveMultiple` - fills `BufferSightPerceive` and `BufferSightMemory` buffers
+        - `SystemSightPerceiveMultiple` - fills `BufferSightPerceive` and `BufferSightMemory`
           after the multiple-rays casting
 
 - `PerceptionSystemGroup` - base group updates in `SimulationSystemGroup` after `TransformSystemGroup`
@@ -482,7 +478,7 @@ All framework's systems update in special system groups in the following order:
         - `SystemHearingMemory` - updates `BufferHearingMemory.Time` and removes run out memories
         - `SystemHearingPosition` - calculates current `ComponentHearingPosition` values
         - `SystemHearingSphere` - propagates sound waves with `ComponentHearingRadius`
-        - `SystemHearingUpdate` - fills `BufferHearingPerceive` and `BufferHearingMemory` buffers
+        - `SystemHearingUpdate` - fills `BufferHearingPerceive` and `BufferHearingMemory`
           after hearing detecting
         - `SystemHearingDebug` - draws debugging lines for entities with `TagHearingDebug` enabled
 
