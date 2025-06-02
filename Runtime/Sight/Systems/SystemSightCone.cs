@@ -24,12 +24,12 @@ namespace Perception
 
         private ComponentTypeHandle<ComponentSightPosition> _handlePosition;
         private ComponentTypeHandle<ComponentSightExtend> _handleExtend;
-        private ComponentTypeHandle<ComponentTeamFilter> _handleFilter;
+        private ComponentTypeHandle<ComponentSightFilter> _handleFilter;
         private ComponentTypeHandle<ComponentSightCone> _handleCone;
         private ComponentTypeHandle<LocalToWorld> _handleTransform;
 
         private ComponentLookup<ComponentSightPosition> _lookupPosition;
-        private ComponentLookup<ComponentTeamFilter> _lookupFilter;
+        private ComponentLookup<ComponentSightFilter> _lookupFilter;
 
         private int2 _chunkIndexRange;
 
@@ -38,7 +38,7 @@ namespace Perception
         {
             _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightPerceive>().Build();
             _queryWithoutCone = SystemAPI.QueryBuilder().WithAll<TagSightReceiver>().WithNone<BufferSightCone>().Build();
-            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentTeamFilter>().Build();
+            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagSightReceiver, TagSightSource>().WithNone<ComponentSightFilter>().Build();
 
             _querySources = SystemAPI.QueryBuilder().WithAll<TagSightSource>().Build();
 
@@ -50,12 +50,12 @@ namespace Perception
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentSightPosition>(isReadOnly: true);
             _handleExtend = SystemAPI.GetComponentTypeHandle<ComponentSightExtend>(isReadOnly: true);
-            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentTeamFilter>(isReadOnly: true);
+            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentSightFilter>(isReadOnly: true);
             _handleCone = SystemAPI.GetComponentTypeHandle<ComponentSightCone>(isReadOnly: true);
             _handleTransform = SystemAPI.GetComponentTypeHandle<LocalToWorld>(isReadOnly: true);
 
             _lookupPosition = SystemAPI.GetComponentLookup<ComponentSightPosition>(isReadOnly: true);
-            _lookupFilter = SystemAPI.GetComponentLookup<ComponentTeamFilter>(isReadOnly: true);
+            _lookupFilter = SystemAPI.GetComponentLookup<ComponentSightFilter>(isReadOnly: true);
         }
 
         [BurstCompile]
@@ -80,7 +80,7 @@ namespace Perception
 
             foreach (var entity in _queryWithoutFilter.ToEntityArray(Allocator.Temp))
             {
-                commands.AddComponent(entity, new ComponentTeamFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
+                commands.AddComponent(entity, new ComponentSightFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
             }
 
             commands.Playback(state.EntityManager);
@@ -239,12 +239,12 @@ namespace Perception
         private struct CommonHandles
         {
             public ComponentTypeHandle<ComponentSightPosition> HandlePosition;
-            public ComponentTypeHandle<ComponentTeamFilter> HandleFilter;
+            public ComponentTypeHandle<ComponentSightFilter> HandleFilter;
             public ComponentTypeHandle<ComponentSightCone> HandleCone;
             public ComponentTypeHandle<LocalToWorld> HandleTransform;
 
             public ComponentLookup<ComponentSightPosition> LookupPosition;
-            public ComponentLookup<ComponentTeamFilter> LookupFilter;
+            public ComponentLookup<ComponentSightFilter> LookupFilter;
 
             public NativeArray<Entity>.ReadOnly Sources;
 
@@ -265,12 +265,12 @@ namespace Perception
         private struct CommonArrays
         {
             public NativeArray<ComponentSightPosition> Positions;
-            public NativeArray<ComponentTeamFilter> Filters;
+            public NativeArray<ComponentSightFilter> Filters;
             public NativeArray<ComponentSightCone> Cones;
             public NativeArray<LocalToWorld> Transforms;
 
             [BurstCompile]
-            public void Get(int index, out ComponentSightPosition position, out ComponentTeamFilter filter, out ComponentSightCone cone, out LocalToWorld transform)
+            public void Get(int index, out ComponentSightPosition position, out ComponentSightFilter filter, out ComponentSightCone cone, out LocalToWorld transform)
             {
                 position = Positions[index];
                 filter = Filters[index];
