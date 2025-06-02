@@ -2,6 +2,9 @@ using Unity.Entities;
 
 namespace Perception
 {
+    /// <summary>
+    /// Adds team filter to sight receivers and sources.
+    /// </summary>
     public struct ComponentSightFilter : IComponentData
     {
         public uint BelongsTo;
