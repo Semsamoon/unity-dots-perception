@@ -1,3 +1,4 @@
+using Unity.Burst;
 using Unity.Entities;
 
 namespace Perception
@@ -5,11 +6,13 @@ namespace Perception
     /// <summary>
     /// Adds team filter to sight receivers and sources.
     /// </summary>
+    [BurstCompile]
     public struct ComponentSightFilter : IComponentData
     {
         public uint BelongsTo;
         public uint Perceives;
 
+        [BurstCompile]
         public bool CanPerceive(in ComponentSightFilter filter)
         {
             return (Perceives & filter.BelongsTo) > 0;
