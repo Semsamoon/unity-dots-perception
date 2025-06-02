@@ -22,11 +22,11 @@ namespace Perception
 
         private ComponentTypeHandle<ComponentHearingPosition> _handlePosition;
         private ComponentTypeHandle<ComponentHearingMemory> _handleMemory;
-        private ComponentTypeHandle<ComponentTeamFilter> _handleFilter;
+        private ComponentTypeHandle<ComponentHearingFilter> _handleFilter;
 
         private ComponentLookup<ComponentHearingPosition> _lookupPosition;
         private ComponentLookup<ComponentHearingRadius> _lookupRadius;
-        private ComponentLookup<ComponentTeamFilter> _lookupFilter;
+        private ComponentLookup<ComponentHearingFilter> _lookupFilter;
 
         private int2 _chunkIndexRange;
 
@@ -34,7 +34,7 @@ namespace Perception
         public void OnCreate(ref SystemState state)
         {
             _queryWithoutPerceive = SystemAPI.QueryBuilder().WithAll<TagHearingReceiver>().WithNone<BufferHearingPerceive>().Build();
-            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentTeamFilter>().Build();
+            _queryWithoutFilter = SystemAPI.QueryBuilder().WithAny<TagHearingReceiver, TagHearingSource>().WithNone<ComponentHearingFilter>().Build();
 
             _querySources = SystemAPI.QueryBuilder().WithAll<TagHearingSource>().Build();
 
@@ -46,11 +46,11 @@ namespace Perception
 
             _handlePosition = SystemAPI.GetComponentTypeHandle<ComponentHearingPosition>(isReadOnly: true);
             _handleMemory = SystemAPI.GetComponentTypeHandle<ComponentHearingMemory>(isReadOnly: true);
-            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentTeamFilter>(isReadOnly: true);
+            _handleFilter = SystemAPI.GetComponentTypeHandle<ComponentHearingFilter>(isReadOnly: true);
 
             _lookupPosition = SystemAPI.GetComponentLookup<ComponentHearingPosition>(isReadOnly: true);
             _lookupRadius = SystemAPI.GetComponentLookup<ComponentHearingRadius>(isReadOnly: true);
-            _lookupFilter = SystemAPI.GetComponentLookup<ComponentTeamFilter>(isReadOnly: true);
+            _lookupFilter = SystemAPI.GetComponentLookup<ComponentHearingFilter>(isReadOnly: true);
         }
 
         [BurstCompile]
@@ -70,7 +70,7 @@ namespace Perception
 
             foreach (var entity in _queryWithoutFilter.ToEntityArray(Allocator.Temp))
             {
-                commands.AddComponent(entity, new ComponentTeamFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
+                commands.AddComponent(entity, new ComponentHearingFilter { BelongsTo = uint.MaxValue, Perceives = uint.MaxValue });
             }
 
             commands.Playback(state.EntityManager);
@@ -247,11 +247,11 @@ namespace Perception
         private struct CommonHandles
         {
             public ComponentTypeHandle<ComponentHearingPosition> HandlePosition;
-            public ComponentTypeHandle<ComponentTeamFilter> HandleFilter;
+            public ComponentTypeHandle<ComponentHearingFilter> HandleFilter;
 
             public ComponentLookup<ComponentHearingPosition> LookupPosition;
             public ComponentLookup<ComponentHearingRadius> LookupRadius;
-            public ComponentLookup<ComponentTeamFilter> LookupFilter;
+            public ComponentLookup<ComponentHearingFilter> LookupFilter;
 
             public NativeArray<Entity>.ReadOnly Sources;
 
@@ -270,10 +270,10 @@ namespace Perception
         private struct CommonArrays
         {
             public NativeArray<ComponentHearingPosition> Positions;
-            public NativeArray<ComponentTeamFilter> Filters;
+            public NativeArray<ComponentHearingFilter> Filters;
 
             [BurstCompile]
-            public void Get(int index, out ComponentHearingPosition position, out ComponentTeamFilter filter)
+            public void Get(int index, out ComponentHearingPosition position, out ComponentHearingFilter filter)
             {
                 position = Positions[index];
                 filter = Filters[index];
