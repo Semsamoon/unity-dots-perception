@@ -2,6 +2,9 @@ using Unity.Entities;
 
 namespace Perception
 {
+    /// <summary>
+    /// Adds team filter to hearing receivers and sources.
+    /// </summary>
     public struct ComponentHearingFilter : IComponentData
     {
         public uint BelongsTo;
