@@ -1,3 +1,4 @@
+﻿using Unity.Burst;
 using Unity.Entities;
 
 namespace Perception
@@ -5,11 +6,13 @@ namespace Perception
     /// <summary>
     /// Adds team filter to hearing receivers and sources.
     /// </summary>
+    [BurstCompile]
     public struct ComponentHearingFilter : IComponentData
     {
         public uint BelongsTo;
         public uint Perceives;
 
+        [BurstCompile]
         public bool CanPerceive(in ComponentHearingFilter filter)
         {
             return (Perceives & filter.BelongsTo) > 0;
