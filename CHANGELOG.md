@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-06-02
+
+### Added
+
+- Sight and hearing senses' team filter components with XML documentation.
+
+### Changed
+
+- Optimize inside cone of vision check to improve performance.
+- Remove common team filter and replace it with separated sight and hearing team filters.
+- Update description in README file with team filters and less 'component' and 'buffer' usage.
+
 ## [1.0.0] - 2025-05-07
 
 ### Added
