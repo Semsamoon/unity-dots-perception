@@ -119,7 +119,7 @@ namespace Perception
                     }
                 }
 
-                AddComponent<ComponentTeamFilter>(entity, authoring._teamFilter);
+                AddComponent<ComponentSightFilter>(entity, authoring._teamFilter);
             }
         }
 
