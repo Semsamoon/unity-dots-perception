@@ -26,16 +26,17 @@ namespace Perception
             var difference = target - origin;
             var distanceSquared = math.lengthsq(difference);
 
-            if (distanceSquared > cone.RadiusSquared || distanceSquared < cone.ClipSquared)
+            if (distanceSquared > cone.RadiusSquared || distanceSquared <= cone.ClipSquared)
             {
                 return false;
             }
 
-            var directionLocal = transform.Value.InverseTransformDirection(difference);
-            var squared = directionLocal * directionLocal;
+            var local = transform.Value.InverseTransformDirection(difference);
+            var directionXOZ = math.normalize(new float3(local.x, 0, local.z));
+            var directionYOZ = math.normalize(new float3(0, local.y, local.z));
 
-            return directionLocal.z / math.sqrt(squared.x + squared.z) >= cone.AnglesCos.x
-                   && math.sqrt((squared.x + squared.z) / (squared.x + squared.y + squared.z)) >= cone.AnglesCos.y;
+            return math.dot(directionXOZ, new float3(0, 0, 1)) >= cone.AnglesCos.x
+                   && math.dot(directionYOZ, new float3(0, 0, 1)) >= cone.AnglesCos.y;
         }
     }
 }
