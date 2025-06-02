@@ -6,5 +6,20 @@ namespace Perception
     {
         public uint BelongsTo;
         public uint Perceives;
+
+        public bool CanPerceive(in ComponentSightFilter filter)
+        {
+            return (Perceives & filter.BelongsTo) > 0;
+        }
+
+        public static implicit operator ComponentSightFilter(in TeamFilterSerializable serializable)
+        {
+            return new ComponentSightFilter { BelongsTo = serializable.BelongsTo, Perceives = serializable.Perceives };
+        }
+
+        public static implicit operator TeamFilterSerializable(in ComponentSightFilter filter)
+        {
+            return new TeamFilterSerializable { BelongsTo = filter.BelongsTo, Perceives = filter.Perceives };
+        }
     }
 }
